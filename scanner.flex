@@ -75,7 +75,10 @@ IGNORE        [ \t\n\r]
 {ADD_BINOP}     {return ADD_BINOP;}
 {MUL_BINOP}     {return MUL_BINOP;}
 {ID}            {return ID;}
-{NUM}           {return NUM;}
+{NUM}           {
+    
+    return NUM;
+    }
 {STRING}        {return STRING;}
 {COMMENT}       ;
 {IGNORE}        ;

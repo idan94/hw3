@@ -7,6 +7,11 @@
    void yyerror(const char*);
 %}
 
+%union{
+   int val;
+   char op;
+}
+
 %nonassoc VOID    
 %nonassoc INT     
 %nonassoc BYTE    
@@ -26,16 +31,16 @@
 %right ASSIGN 
 %left OR   
 %left AND    
-%left EQUALITY_RELOP   
-%nonassoc RELATIONAL_RELOP
-%left ADD_BINOP 
-%left MUL_BINOP  
+%left <op> EQUALITY_RELOP   
+%nonassoc <op> RELATIONAL_RELOP
+%left <op> ADD_BINOP 
+%left <op> MUL_BINOP  
 %right NOT    
 %left LPAREN  
 %left RPAREN 
 %nonassoc ELSE //Take Else Before RPAREN ')'
 %nonassoc ID      
-%nonassoc NUM     
+%nonassoc <val> NUM     
 %nonassoc STRING  
 %%
 
