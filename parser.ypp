@@ -5,20 +5,36 @@
 
    int yylex();
    void yyerror(const char*);
+   enum Type {INT,BYTE,BOOL};
+   union Value {
+      bool bool_value;
+      int number;
+      char* str;
+   };
+
+struct EXP_data{
+   Type type;
+   Value value;  
+};
+   
 %}
 
+
 %union{
-   int val;
-   char op;
+   Type type;
+   EXP_data expression;
+   Value value;
+   enum {PLUS,MIUNS,MUL,DIVIDE} op;
+   // going to contain all the possible types
 }
 
-%nonassoc VOID    
-%nonassoc INT     
-%nonassoc BYTE    
+%nonassoc <type> VOID    
+%nonassoc <type> INT     
+%nonassoc <type> BYTE    
 %nonassoc B       
-%nonassoc BOOL    
-%nonassoc TRUE    
-%nonassoc FALSE   
+%nonassoc <type> BOOL    
+%nonassoc <value> TRUE    
+%nonassoc <value> FALSE   
 %nonassoc RETURN  
 %nonassoc IF      
 %nonassoc WHILE   
@@ -40,8 +56,8 @@
 %left RPAREN 
 %nonassoc ELSE //Take Else Before RPAREN ')'
 %nonassoc ID      
-%nonassoc <val> NUM     
-%nonassoc STRING  
+%nonassoc <value> NUM     
+%nonassoc <value> STRING  
 %%
 
 Program:       Marker1 Funcs       {
@@ -112,8 +128,9 @@ Type:          INT         {}
                | BYTE         {}
                | BOOL         {}
 ;
-Exp:           LPAREN Exp RPAREN       {}
-               | Exp ADD_BINOP Exp         {}
+<expression> Exp:           LPAREN Exp RPAREN       {}
+               | Exp ADD_BINOP Exp         {
+                   }
                | Exp MUL_BINOP Exp         {}
                | ID        {}
                | Call         {}
