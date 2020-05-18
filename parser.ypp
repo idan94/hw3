@@ -1,40 +1,49 @@
 %{
    #include "hw3_output.hpp"
+   #include <stack>
+   #include <map>
    using namespace std;
-   
+
+   map<char*,pair<char*, int>>* make_table(map<char*,pair<char*, int>>* parent);
+   void pop_tables();
+   void pop_offsets();
+   void push_tables(map<char*,pair<char*, int>>* table);
+   void push_offsets(int offset);
+   map<char*,pair<char*, int>> &top_tables();
+   int &top_offsets();
+   void insert(map<char*,pair<char*, int>> table, char* name, char* type,int offset);
+
 
    int yylex();
    void yyerror(const char*);
-   enum Type {INT,BYTE,BOOL,STRING};
-   union Value {
+
+
+   stack<map<char*,pair<char*, int>>>* tables = NULL;
+   stack<int>* offsets = NULL;
+   map<char*,pair<char*, int>>* t = NULL;
+%}
+
+%union{
+   struct {
+      char* type;
       bool bool_value;
       int number;
       char* str;
-   };
-
-struct EXP_data{
-   Type type;
-   Value value;  
-};
-   
-%}
-
-
-%union{
-   Type type;
-   EXP_data expression;
-   Value value;
+   }  expression;  
+   bool bool_value;
+   int number;
+   char* str;
    enum {PLUS,MIUNS,MUL,DIVIDE} op;
    // going to contain all the possible types
-}
+};
 
-%nonassoc <type> VOID    
-%nonassoc <type> INT     
-%nonassoc <type> BYTE    
+%nonassoc  VOID    
+%nonassoc INT     
+%nonassoc BYTE    
 %nonassoc B       
-%nonassoc <type> BOOL    
-%nonassoc <value> TRUE    
-%nonassoc <value> FALSE   
+%nonassoc BOOL    
+%nonassoc TRUE    
+%nonassoc FALSE   
 %nonassoc RETURN  
 %nonassoc IF      
 %nonassoc WHILE   
@@ -56,22 +65,22 @@ struct EXP_data{
 %left RPAREN 
 %nonassoc ELSE //Take Else Before RPAREN ')'
 %nonassoc ID      
-%nonassoc <value> NUM     
-%nonassoc <value> STRING  
+%nonassoc <number> NUM     
+%nonassoc <str> STRING  
 
 
 %type <expression> Exp
 %%
 
 Program:       Marker1 Funcs       {
-   pop(tables);
-   pop(offsets);
+   pop_tables();
+   pop_offsets();
 }
 ;
 Marker1:       /*epsilon*/       {
-      t = make_table(null);
-      push(t,tables);
-      push(0,offsets);
+      t = make_table(NULL);
+      push_tables(t);
+      push_offsets(0);
 }
 Funcs:         /*epsilon*/       {}
                | FuncDecl Funcs        {}
@@ -100,12 +109,12 @@ Statement:
                | WHILE LPAREN Exp RPAREN Statement ELSE Statement       {}
                /* ^^^ Moved here If and While roles. solving 'Dangling Else' ^^^ */
                | LBRACE Marker2 Statements RBRACE         {
-                  pop(tables);
-                  pop(offsets);
+                  pop_tables();
+                  pop_offsets();
                }
                | Type ID SC         {
-                  insert(top(tables), ID.name, vartype.type, top(offsets));
-                  top(offsets) += vartype.size;
+                  insert(top_tables(), "ID.name", "vartype.type", top_offsets());
+                  top_offsets() += 1;
                }
                | Type ID ASSIGN Exp SC       {}
                | ID ASSIGN Exp SC         {}
@@ -116,9 +125,9 @@ Statement:
                | CONTINUE SC        {}
 ;
 Marker2:       /*epsilon*/        {
-      t = make_table(top(tables));
-      push(t,tables);
-      push(top(offsets),offsets);
+      t = make_table(&top_tables());
+      push_tables(t);
+      push_offsets(top_offsets());
 }
 ;
 Call:          ID LPAREN ExpList RPAREN         {}
@@ -137,12 +146,18 @@ Exp:           LPAREN Exp RPAREN       {}
                | Exp MUL_BINOP Exp         {}
                | ID        {}
                | Call         {}
-               | NUM       {$$.value.number = $1;$$.type=Type.INT}
-               | NUM B       {$$.value.number = $1;$$.type=Type.BYTE}
-               | STRING       {$$.value.str=$1;$$.type=Type.STRING // String is an intenal type
-                                                                  // }
-               | TRUE         {$$.value.bool_value=true;$$.type=Type.BOOL}
-               | FALSE        {$$.value.bool_value=false;$$.type=Type.BOOL}
+               | NUM       {$$.number = $1;
+               $$.type="T_INT";}
+               | NUM B       {$$.number = $1;
+               $$.type="T_BYTE";}
+               | STRING       {$$.str=$1;
+               $$.type="T_STRING";
+                // String is an intenal type
+               }
+               | TRUE         {$$.bool_value=true;
+               $$.type="T_BOOL";}
+               | FALSE        {$$.bool_value=false;
+               $$.type="T_BOOL";}
                | NOT Exp         {}
                | Exp AND Exp        {}
                | Exp OR Exp        {}
@@ -153,11 +168,51 @@ Exp:           LPAREN Exp RPAREN       {}
 
 %%
 
+map<char*,pair<char*, int>>* make_table(map<char*,pair<char*, int>>* parent){
+   // <Name, Type, Offset>
+   return new map<char*,pair<char*, int>>();
+}
+void pop_tables(){
+   tables->pop();
+}
+void pop_offsets(){
+   offsets->pop();
+}
+void push_tables(map<char*,pair<char*, int>>* table){
+   tables->push(*table);
+}
+void push_offsets(int offset){
+   offsets->push(offset);
+}
+map<char*,pair<char*, int>> &top_tables(){
+   return tables->top();
+}
+
+int &top_offsets(){
+   return offsets->top();
+}
+
+void insert(map<char*,pair<char*, int>> table, char* name, char* type,int offset){
+   table.insert(
+      pair<
+         char*,
+         pair<
+            char*,int>
+      >
+      (
+         name,
+         pair<char*,int>(type,offset)
+      )
+      );
+}
+
 void yyerror(const char*){
    extern int yylineno;
    output::errorSyn(yylineno); 
 }
 
 int main(){
-  return yyparse();
+   tables = new stack<map<char*,pair<char*, int>>>();
+   offsets = new stack<int>();
+   return yyparse();
 }
