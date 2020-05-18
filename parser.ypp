@@ -5,7 +5,7 @@
 
    int yylex();
    void yyerror(const char*);
-   enum Type {INT,BYTE,BOOL};
+   enum Type {INT,BYTE,BOOL,STRING};
    union Value {
       bool bool_value;
       int number;
@@ -58,6 +58,9 @@ struct EXP_data{
 %nonassoc ID      
 %nonassoc <value> NUM     
 %nonassoc <value> STRING  
+
+
+%type <expression> Exp
 %%
 
 Program:       Marker1 Funcs       {
@@ -128,17 +131,18 @@ Type:          INT         {}
                | BYTE         {}
                | BOOL         {}
 ;
-<expression> Exp:           LPAREN Exp RPAREN       {}
+Exp:           LPAREN Exp RPAREN       {}
                | Exp ADD_BINOP Exp         {
                    }
                | Exp MUL_BINOP Exp         {}
                | ID        {}
                | Call         {}
-               | NUM       {}
-               | NUM B        {}
-               | STRING       {}
-               | TRUE         {}
-               | FALSE        {}
+               | NUM       {$$.value.number = $1;$$.type=Type.INT}
+               | NUM B       {$$.value.number = $1;$$.type=Type.BYTE}
+               | STRING       {$$.value.str=$1;$$.type=Type.STRING // String is an intenal type
+                                                                  // }
+               | TRUE         {$$.value.bool_value=true;$$.type=Type.BOOL}
+               | FALSE        {$$.value.bool_value=false;$$.type=Type.BOOL}
                | NOT Exp         {}
                | Exp AND Exp        {}
                | Exp OR Exp        {}
