@@ -4,7 +4,11 @@ void printOk(bool isOk) {
 
 void main()
 {
-    int x = 4;
+    int x1 = 11;
+    int x2 = 12;
+    int x3 = 13;
+
+    int d = 6;
     byte y = 100 b;
     printOk(x>y);
     int z;

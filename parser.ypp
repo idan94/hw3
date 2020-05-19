@@ -1,43 +1,55 @@
 %{
    #include "hw3_output.hpp"
    #include <stack>
+   #include <iostream>
    #include <map>
+   #include <string>
    using namespace std;
-
-   map<char*,pair<char*, int>>* make_table(map<char*,pair<char*, int>>* parent);
+   map<string,pair<string, int>>* make_table(map<string,pair<string, int>>* parent);
    void pop_tables();
    void pop_offsets();
-   void push_tables(map<char*,pair<char*, int>>* table);
+   void push_tables(map<string,pair<string, int>>* table);
    void push_offsets(int offset);
-   map<char*,pair<char*, int>> &top_tables();
+   map<string,pair<string, int>> &top_tables();
    int &top_offsets();
-   void insert(map<char*,pair<char*, int>> table, char* name, char* type,int offset);
+   void insert(string name, string type,int offset);
 
+   #define OP_PLUS     "op_plus"
+   #define OP_MINUS    "op_minus"
+   #define OP_MUL      "op_mul"
+   #define OP_DIV      "op_div"
+
+   #define TYPE_INT    "type_int"
+   #define TYPE_BOOL   "type_bool"
+   #define TYPE_BYTE   "type_byte"
+   #define TYPE_STRING "type_string"
 
    int yylex();
    void yyerror(const char*);
 
-
-   stack<map<char*,pair<char*, int>>>* tables = NULL;
+   stack<map<string,pair<string, int>>>* tables = NULL;
    stack<int>* offsets = NULL;
-   map<char*,pair<char*, int>>* t = NULL;
+
+   map<string,pair<string, int>>* t = NULL;
 %}
 
 %union{
    struct {
-      char* type;
+      string* type;
       bool bool_value;
       int number;
-      char* str;
+      string* str;
    }  expression;  
    bool bool_value;
    int number;
-   char* str;
-   enum {PLUS,MIUNS,MUL,DIVIDE} op;
+   string* str;
+   char* op;
+   string* id_name;
+   string* type;
    // going to contain all the possible types
 };
 
-%nonassoc  VOID    
+%nonassoc VOID    
 %nonassoc INT     
 %nonassoc BYTE    
 %nonassoc B       
@@ -64,12 +76,14 @@
 %left LPAREN  
 %left RPAREN 
 %nonassoc ELSE //Take Else Before RPAREN ')'
-%nonassoc ID      
+%nonassoc <id_name> ID      
 %nonassoc <number> NUM     
 %nonassoc <str> STRING  
 
 
 %type <expression> Exp
+%type <type> Type
+
 %%
 
 Program:       Marker1 Funcs       {
@@ -113,10 +127,44 @@ Statement:
                   pop_offsets();
                }
                | Type ID SC         {
-                  insert(top_tables(), "ID.name", "vartype.type", top_offsets());
+                   cout << "Type ID SC     "  << endl;
+                  cout << "CHECK    " << *$2 << endl;
+                  insert(*$2, *$1, top_offsets());
                   top_offsets() += 1;
                }
-               | Type ID ASSIGN Exp SC       {}
+               | Type ID ASSIGN Exp SC       {
+                  cout << "Type ID ASSIGN Exp SC     " << endl;
+                  cout << "CHECK    " << *$2 << endl;
+
+                  insert(*$2, *$1, top_offsets());
+                  top_offsets() += 1;
+                  cout << " offsets size is: " << offsets->size() << endl;
+                  stack<int>* copy = new stack<int>(*offsets);
+                  cout << "[";
+                  while(!copy->empty())
+                  {
+                     std::cout << copy->top() << ",";
+                     copy->pop(); 
+                  }
+                  cout << "]" << endl;
+
+
+                  /* Tables: */
+                  cout << "tables size is: " << tables->size() << endl;
+                  stack<map<string,pair<string, int>>>* copyT = new stack<map<string,pair<string, int>>>(*tables);
+                  cout << "[";
+                  while(!copyT->empty())
+                  {
+                     map<string,pair<string, int>> temp_map = copyT->top();
+                     cout << "TEMP MAP  size is: " << temp_map.size() << endl;
+                     for(const auto& x : temp_map){
+                        std::cout << "Name: " << x.first << ", Type: " << x.second.first <<", Offset: "<< x.second.second <<  endl;
+                     }
+                     copyT->pop(); 
+                  }
+                  cout << "]" << endl;
+
+               }
                | ID ASSIGN Exp SC         {}
                | Call SC         {}
                | RETURN SC       {}
@@ -136,28 +184,44 @@ Call:          ID LPAREN ExpList RPAREN         {}
 ExpList:       Exp         {}
                | Exp COMMA ExpList        {}
 ;
-Type:          INT         {}
-               | BYTE         {}
-               | BOOL         {}
+Type:          INT            {
+                  $$ = new string(TYPE_INT);
+               }
+               | BYTE         {
+                  $$ = new string(TYPE_BYTE);
+               }
+               | BOOL         {
+                  $$ = new string(TYPE_BOOL);
+               }
 ;
 Exp:           LPAREN Exp RPAREN       {}
                | Exp ADD_BINOP Exp         {
                    }
                | Exp MUL_BINOP Exp         {}
-               | ID        {}
+               | ID        {cout << "ID" << endl;}
                | Call         {}
-               | NUM       {$$.number = $1;
-               $$.type="T_INT";}
-               | NUM B       {$$.number = $1;
-               $$.type="T_BYTE";}
-               | STRING       {$$.str=$1;
-               $$.type="T_STRING";
-                // String is an intenal type
+               | NUM       {
+                  $$.number = $1;  cout << "EXP -> NUM (PARSER): " << $1  << endl;
+                  $$.type = new string(TYPE_INT);
+                  cout << "after" << endl;
                }
-               | TRUE         {$$.bool_value=true;
-               $$.type="T_BOOL";}
-               | FALSE        {$$.bool_value=false;
-               $$.type="T_BOOL";}
+               | NUM B       {
+                  $$.number = $1;  cout << "EXP -> NUM B(PARSER): " << $1  << endl;
+                  $$.type = new string(TYPE_BYTE);
+               }
+               | STRING       {
+                  // String is an internal type
+                  $$.str=$1;  cout << "EXP -> STRING(PARSER): " << *$1  << endl;
+                  $$.type = new string(TYPE_STRING);
+               }
+               | TRUE         {
+                  $$.bool_value=true;
+                  $$.type = new string(TYPE_BOOL);
+               }
+               | FALSE        {
+                  $$.bool_value=false;
+                  $$.type = new string(TYPE_BOOL);
+               }
                | NOT Exp         {}
                | Exp AND Exp        {}
                | Exp OR Exp        {}
@@ -168,9 +232,9 @@ Exp:           LPAREN Exp RPAREN       {}
 
 %%
 
-map<char*,pair<char*, int>>* make_table(map<char*,pair<char*, int>>* parent){
-   // <Name, Type, Offset>
-   return new map<char*,pair<char*, int>>();
+map<string,pair<string, int>>* make_table(map<string,pair<string, int>>* parent){
+   // <Name, part<Type, Offset>>
+   return new map<string,pair<string, int>>();
 }
 void pop_tables(){
    tables->pop();
@@ -178,13 +242,13 @@ void pop_tables(){
 void pop_offsets(){
    offsets->pop();
 }
-void push_tables(map<char*,pair<char*, int>>* table){
+void push_tables(map<string,pair<string, int>>* table){
    tables->push(*table);
 }
 void push_offsets(int offset){
    offsets->push(offset);
 }
-map<char*,pair<char*, int>> &top_tables(){
+map<string,pair<string, int>> &top_tables(){
    return tables->top();
 }
 
@@ -192,18 +256,17 @@ int &top_offsets(){
    return offsets->top();
 }
 
-void insert(map<char*,pair<char*, int>> table, char* name, char* type,int offset){
-   table.insert(
-      pair<
-         char*,
-         pair<
-            char*,int>
-      >
-      (
+void insert(string name, string type,int offset){
+   cout << "INSIDE INSTERT FUNCTION: name: " << name << endl;
+   cout << "INSIDE INSTERT FUNCTION: type:" << type << endl;
+   cout << "INSIDE INSTERT FUNCTION:  :offset: " << offset << endl;
+
+
+
+   (tables->top()).insert({
          name,
-         pair<char*,int>(type,offset)
-      )
-      );
+         pair<string ,int>(type,offset)
+   });
 }
 
 void yyerror(const char*){
@@ -212,7 +275,8 @@ void yyerror(const char*){
 }
 
 int main(){
-   tables = new stack<map<char*,pair<char*, int>>>();
+   tables = new stack<map<string,pair<string, int>>>();
    offsets = new stack<int>();
+
    return yyparse();
 }

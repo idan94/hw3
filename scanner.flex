@@ -74,12 +74,23 @@ IGNORE        [ \t\n\r]
 {EQUALITY_RELOP}           {return EQUALITY_RELOP;}
 {ADD_BINOP}     {return ADD_BINOP;}
 {MUL_BINOP}     {return MUL_BINOP;}
-{ID}            {return ID;}
+{ID}            {
+                    auto temp = new string(yytext); 
+                    cout << "ID~~~~~~~~~~~~~~~~~FLEX: " << *temp << endl;
+                    yylval.id_name=temp;
+                    return ID;
+                }
 {NUM}           {
-    
-    return NUM;
-    }
-{STRING}        {return STRING;}
+                    yylval.number=atoi(yytext);
+                    return NUM;
+                }
+{STRING}        {
+                    cout << "STRING~~~~~~~" << endl;
+                    auto temp = new string(yytext); 
+                    cout << "STRING~~~~~~~~~~~~~~~~~FLEX: " << *temp << endl;
+                    yylval.str=temp;
+                    return STRING;
+                }
 {COMMENT}       ;
 {IGNORE}        ;
 .               {output::errorLex(yylineno); exit(1);}
