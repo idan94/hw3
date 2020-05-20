@@ -939,36 +939,46 @@ YY_RULE_SETUP
 case 24:
 YY_RULE_SETUP
 #line 73 "scanner.flex"
-{return RELATIONAL_RELOP;}
+{
+                yylval.op=new string(yytext);
+                return RELATIONAL_RELOP;
+                }
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 74 "scanner.flex"
-{return EQUALITY_RELOP;}
+#line 77 "scanner.flex"
+{
+                yylval.op=new string(yytext);
+                return EQUALITY_RELOP;
+            }
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 75 "scanner.flex"
-{return ADD_BINOP;}
+#line 81 "scanner.flex"
+{   
+            yylval.op=new string(yytext);
+            return ADD_BINOP;
+        }
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 76 "scanner.flex"
-{return MUL_BINOP;}
+#line 85 "scanner.flex"
+{
+            yylval.op=new string(yytext);
+            return MUL_BINOP;
+        }
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 77 "scanner.flex"
+#line 89 "scanner.flex"
 {
-                    auto temp = new string(yytext); 
-                    cout << "ID~~~~~~~~~~~~~~~~~FLEX: " << *temp << endl;
-                    yylval.id_name=temp;
-                    return ID;
-                }
+            yylval.id_name=new string(yytext);;
+            return ID;
+        }
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 83 "scanner.flex"
+#line 93 "scanner.flex"
 {
                     yylval.number=atoi(yytext);
                     return NUM;
@@ -976,38 +986,35 @@ YY_RULE_SETUP
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 87 "scanner.flex"
+#line 97 "scanner.flex"
 {
-                    cout << "STRING~~~~~~~" << endl;
-                    auto temp = new string(yytext); 
-                    cout << "STRING~~~~~~~~~~~~~~~~~FLEX: " << *temp << endl;
-                    yylval.str=temp;
+                    yylval.str=new string(yytext);
                     return STRING;
                 }
 	YY_BREAK
 case 31:
 /* rule 31 can match eol */
 YY_RULE_SETUP
-#line 94 "scanner.flex"
+#line 101 "scanner.flex"
 ;
 	YY_BREAK
 case 32:
 /* rule 32 can match eol */
 YY_RULE_SETUP
-#line 95 "scanner.flex"
+#line 102 "scanner.flex"
 ;
 	YY_BREAK
 case 33:
 YY_RULE_SETUP
-#line 96 "scanner.flex"
+#line 103 "scanner.flex"
 {output::errorLex(yylineno); exit(1);}
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 98 "scanner.flex"
+#line 105 "scanner.flex"
 ECHO;
 	YY_BREAK
-#line 1011 "lex.yy.c"
+#line 1018 "lex.yy.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -2013,6 +2020,6 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 98 "scanner.flex"
+#line 105 "scanner.flex"
 
 

@@ -9,5 +9,5 @@
 
 using namespace std;
 
-enum Enum_Type {T_INT,T_BYTE,T_BOOL,T_STRING};
+
 #endif

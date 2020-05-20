@@ -39,6 +39,12 @@
 #if YYDEBUG
 extern int yydebug;
 #endif
+/* "%code requires" blocks.  */
+#line 46 "parser.ypp" /* yacc.c:1909  */
+
+   struct Expression;
+
+#line 48 "parser.tab.hpp" /* yacc.c:1909  */
 
 /* Token type.  */
 #ifndef YYTOKENTYPE
@@ -83,23 +89,18 @@ extern int yydebug;
 
 union YYSTYPE
 {
-#line 36 "parser.ypp" /* yacc.c:1909  */
+#line 49 "parser.ypp" /* yacc.c:1909  */
 
-   struct {
-      string* type;
-      bool bool_value;
-      int number;
-      string* str;
-   }  expression;  
+   Expression* expression;  
    bool bool_value;
    int number;
    string* str;
-   char* op;
+   string* op;
    string* id_name;
-   string* type;
+   const string* type;
    // going to contain all the possible types
 
-#line 103 "parser.tab.hpp" /* yacc.c:1909  */
+#line 104 "parser.tab.hpp" /* yacc.c:1909  */
 };
 
 typedef union YYSTYPE YYSTYPE;

@@ -70,25 +70,32 @@ IGNORE        [ \t\n\r]
 {LBRACE}        {return LBRACE;}
 {RBRACE}        {return RBRACE;}
 {ASSIGN}        {return ASSIGN;}
-{RELATIONAL_RELOP}         {return RELATIONAL_RELOP;}
-{EQUALITY_RELOP}           {return EQUALITY_RELOP;}
-{ADD_BINOP}     {return ADD_BINOP;}
-{MUL_BINOP}     {return MUL_BINOP;}
-{ID}            {
-                    auto temp = new string(yytext); 
-                    cout << "ID~~~~~~~~~~~~~~~~~FLEX: " << *temp << endl;
-                    yylval.id_name=temp;
-                    return ID;
+{RELATIONAL_RELOP}  {
+                yylval.op=new string(yytext);
+                return RELATIONAL_RELOP;
                 }
+{EQUALITY_RELOP}    {
+                yylval.op=new string(yytext);
+                return EQUALITY_RELOP;
+            }
+{ADD_BINOP}     {   
+            yylval.op=new string(yytext);
+            return ADD_BINOP;
+        }
+{MUL_BINOP}     {
+            yylval.op=new string(yytext);
+            return MUL_BINOP;
+        }
+{ID}            {
+            yylval.id_name=new string(yytext);;
+            return ID;
+        }
 {NUM}           {
                     yylval.number=atoi(yytext);
                     return NUM;
                 }
 {STRING}        {
-                    cout << "STRING~~~~~~~" << endl;
-                    auto temp = new string(yytext); 
-                    cout << "STRING~~~~~~~~~~~~~~~~~FLEX: " << *temp << endl;
-                    yylval.str=temp;
+                    yylval.str=new string(yytext);
                     return STRING;
                 }
 {COMMENT}       ;

@@ -5,6 +5,22 @@
    #include <map>
    #include <string>
    using namespace std;
+   extern int yylineno;
+   struct Expression{
+      const string* type;
+      bool bool_value;
+      int number;
+      string* str;
+
+      Expression() : type{NULL}, bool_value{false}, number{0}, str{NULL} {}
+	
+   };
+   typedef struct Expression Expression;
+   string* relop(Expression a, Expression b);
+   string* log_eq(Expression a, Expression b);
+   string* binop(Expression a, Expression b);
+   void check_bool_exp(Expression exp);
+
    map<string,pair<string, int>>* make_table(map<string,pair<string, int>>* parent);
    void pop_tables();
    void pop_offsets();
@@ -14,16 +30,11 @@
    int &top_offsets();
    void insert(string name, string type,int offset);
 
-   #define OP_PLUS     "op_plus"
-   #define OP_MINUS    "op_minus"
-   #define OP_MUL      "op_mul"
-   #define OP_DIV      "op_div"
-
-   #define TYPE_INT    "type_int"
-   #define TYPE_BOOL   "type_bool"
-   #define TYPE_BYTE   "type_byte"
-   #define TYPE_STRING "type_string"
-
+   const string TYPE_INT    = "int";
+   const string TYPE_BOOL   = "bool";
+   const string TYPE_BYTE   = "byte";
+   const string TYPE_STRING = "string";
+  
    int yylex();
    void yyerror(const char*);
 
@@ -32,20 +43,17 @@
 
    map<string,pair<string, int>>* t = NULL;
 %}
-
+%code requires{
+   struct Expression;
+}
 %union{
-   struct {
-      string* type;
-      bool bool_value;
-      int number;
-      string* str;
-   }  expression;  
+   Expression* expression;  
    bool bool_value;
    int number;
    string* str;
-   char* op;
+   string* op;
    string* id_name;
-   string* type;
+   const string* type;
    // going to contain all the possible types
 };
 
@@ -83,6 +91,7 @@
 
 %type <expression> Exp
 %type <type> Type
+%type <type> Call
 
 %%
 
@@ -117,52 +126,54 @@ Statements:    Statement         {}
 ;
 Statement:     
                /* Moved here If and While roles. solving 'Dangling Else' */
-               IF LPAREN Exp RPAREN Statement       {}
-               | IF LPAREN Exp RPAREN Statement ELSE Statement       {}
-               | WHILE LPAREN Exp RPAREN Statement       {}
-               | WHILE LPAREN Exp RPAREN Statement ELSE Statement       {}
+               IF LPAREN Exp RPAREN Statement       {
+                  check_bool_exp(*$3);
+               }
+               | IF LPAREN Exp RPAREN Statement ELSE Statement       {
+                  check_bool_exp(*$3);
+               }
+               | WHILE LPAREN Exp RPAREN Statement       {
+                  check_bool_exp(*$3);
+               }
+               | WHILE LPAREN Exp RPAREN Statement ELSE Statement       {
+                  check_bool_exp(*$3);
+               }
                /* ^^^ Moved here If and While roles. solving 'Dangling Else' ^^^ */
                | LBRACE Marker2 Statements RBRACE         {
                   pop_tables();
                   pop_offsets();
                }
                | Type ID SC         {
-                   cout << "Type ID SC     "  << endl;
-                  cout << "CHECK    " << *$2 << endl;
                   insert(*$2, *$1, top_offsets());
                   top_offsets() += 1;
                }
                | Type ID ASSIGN Exp SC       {
-                  cout << "Type ID ASSIGN Exp SC     " << endl;
-                  cout << "CHECK    " << *$2 << endl;
-
                   insert(*$2, *$1, top_offsets());
                   top_offsets() += 1;
-                  cout << " offsets size is: " << offsets->size() << endl;
+                  // cout << " offsets size is: " << offsets->size() << endl;
                   stack<int>* copy = new stack<int>(*offsets);
-                  cout << "[";
+                  // cout << "[";
                   while(!copy->empty())
                   {
-                     std::cout << copy->top() << ",";
+                     // cout << copy->top() << ",";
                      copy->pop(); 
                   }
-                  cout << "]" << endl;
-
+                  // cout << "]" << endl;
 
                   /* Tables: */
-                  cout << "tables size is: " << tables->size() << endl;
+                  // cout << "tables size is: " << tables->size() << endl;
                   stack<map<string,pair<string, int>>>* copyT = new stack<map<string,pair<string, int>>>(*tables);
-                  cout << "[";
+                  // cout << "[";
                   while(!copyT->empty())
                   {
                      map<string,pair<string, int>> temp_map = copyT->top();
-                     cout << "TEMP MAP  size is: " << temp_map.size() << endl;
+                     // cout << "TEMP MAP  size is: " << temp_map.size() << endl;
                      for(const auto& x : temp_map){
-                        std::cout << "Name: " << x.first << ", Type: " << x.second.first <<", Offset: "<< x.second.second <<  endl;
+                        // cout << "Name: " << x.first << ", Type: " << x.second.first <<", Offset: "<< x.second.second <<  endl;
                      }
                      copyT->pop(); 
                   }
-                  cout << "]" << endl;
+                  // cout << "]" << endl;
 
                }
                | ID ASSIGN Exp SC         {}
@@ -178,59 +189,147 @@ Marker2:       /*epsilon*/        {
       push_offsets(top_offsets());
 }
 ;
-Call:          ID LPAREN ExpList RPAREN         {}
-               | ID LPAREN RPAREN         {}
+Call:          ID LPAREN ExpList RPAREN         {
+                  /* Rule #5 hw's PDF */
+               
+               }
+               | ID LPAREN RPAREN         {
+                  /* Rule #5 hw's PDF */
+               }
 ;
 ExpList:       Exp         {}
                | Exp COMMA ExpList        {}
 ;
 Type:          INT            {
-                  $$ = new string(TYPE_INT);
+                  $$ = &TYPE_INT;
                }
                | BYTE         {
-                  $$ = new string(TYPE_BYTE);
+                  $$ = &TYPE_BYTE;
                }
                | BOOL         {
-                  $$ = new string(TYPE_BOOL);
+                  $$ = &TYPE_BOOL;
                }
 ;
 Exp:           LPAREN Exp RPAREN       {}
                | Exp ADD_BINOP Exp         {
-                   }
-               | Exp MUL_BINOP Exp         {}
-               | ID        {cout << "ID" << endl;}
-               | Call         {}
+                     $$->type = binop(*$1, *$3);
+                  }
+               | Exp MUL_BINOP Exp         {
+                     $$->type = binop(*$1, *$3);
+                  }
+               | ID        {
+                  $$->type = &TYPE_BOOL;
+                  cout << "EXP : ID is working" << endl;
+                  cout <<  $$ << endl;
+                  //TODO REMOVE
+                  }
+               | Call         {
+                  $$->type = $1;
+               }
                | NUM       {
-                  $$.number = $1;  cout << "EXP -> NUM (PARSER): " << $1  << endl;
-                  $$.type = new string(TYPE_INT);
-                  cout << "after" << endl;
+                  cout << "EXP : NUM" << endl;
+                  cout <<  $1 << endl;
+                  cout <<  $$ << endl;
+                  cout <<  TYPE_INT << endl;
+
+                  $$->type = &TYPE_INT;
+                  cout << "after type->" << endl;
+                  $$->number = $1;
                }
                | NUM B       {
-                  $$.number = $1;  cout << "EXP -> NUM B(PARSER): " << $1  << endl;
-                  $$.type = new string(TYPE_BYTE);
+                  $$->number = $1;  
+                  $$->type = &TYPE_BYTE;
                }
                | STRING       {
                   // String is an internal type
-                  $$.str=$1;  cout << "EXP -> STRING(PARSER): " << *$1  << endl;
-                  $$.type = new string(TYPE_STRING);
+                  $$->str=$1;  
+                  $$->type= &TYPE_STRING;
                }
                | TRUE         {
-                  $$.bool_value=true;
-                  $$.type = new string(TYPE_BOOL);
+                  $$->bool_value=true;
+                  $$->type = &TYPE_BOOL;
                }
                | FALSE        {
-                  $$.bool_value=false;
-                  $$.type = new string(TYPE_BOOL);
+                  $$->bool_value=false;
+                  $$->type = &TYPE_BOOL;
                }
                | NOT Exp         {}
-               | Exp AND Exp        {}
+               | Exp AND Exp        {
+                  $$->type = log_eq(*$1, *$3);
+               }
                | Exp OR Exp        {}
-               | Exp EQUALITY_RELOP Exp        {}
-               | Exp RELATIONAL_RELOP Exp        {}
+               | Exp EQUALITY_RELOP Exp        {
+                  $$->type = relop(*$1, *$3);
+               }
+               | Exp RELATIONAL_RELOP Exp         {
+                  $$->type = relop(*$1, *$3);
+               }
 
 ;
-
 %%
+
+/* Rule #8 hw's PDF */
+string* relop(Expression a, Expression b){
+		if ((*(a.type) != TYPE_INT && *(a.type) != TYPE_BYTE)
+      || (*(b.type) != TYPE_INT && *(b.type) != TYPE_BYTE)) {
+			// Both must be numbers
+			output::errorMismatch(yylineno);
+			exit(0);
+      }
+      string* pointer_to_type;
+      *pointer_to_type = TYPE_BOOL;
+		return pointer_to_type;
+}
+
+
+/* Rule #9 hw's PDF */
+string* log_eq(Expression a, Expression b){
+		if (*(a.type) != TYPE_BOOL || *(b.type) != TYPE_BOOL) {
+			// Both must be boolean
+			output::errorMismatch(yylineno);
+			exit(0);
+      }
+      string* pointer_to_type;
+      *pointer_to_type = TYPE_BOOL;
+		return pointer_to_type;
+}
+
+/* Rule #10 hw's PDF */
+string* binop(Expression a, Expression b){
+   if ((*(a.type) != TYPE_INT && *(a.type) != TYPE_INT) 
+   || (*(b.type) != TYPE_BYTE && *(b.type) != TYPE_BYTE)) {
+		// We allow: int&int, int&byte, byte&int or byte&byte
+		output::errorMismatch(yylineno);
+		exit(0);
+	}
+   string* pointer_to_type;
+	if (*(a.type) == TYPE_INT || *(b.type) == TYPE_INT) {
+      // If there is int, we will return int type
+      *pointer_to_type = TYPE_INT;
+		return pointer_to_type;
+	} else {
+      *pointer_to_type = TYPE_BYTE;
+		return pointer_to_type;
+	}
+}
+
+/* Rule #16 hw's PDF */
+void check_bool_exp(Expression exp){
+   cout << "check_bool_exp" << endl;
+   if(exp.type == NULL){
+      cout << "exp is NULL" << endl;
+      return;
+   }
+   cout << exp.type << endl;
+   cout << *(exp.type) << endl;
+   if((*(exp.type)).compare(TYPE_BOOL)){
+      output::errorMismatch(yylineno);
+		exit(0);
+   }
+}
+
+
+
 
 map<string,pair<string, int>>* make_table(map<string,pair<string, int>>* parent){
    // <Name, part<Type, Offset>>
@@ -257,9 +356,9 @@ int &top_offsets(){
 }
 
 void insert(string name, string type,int offset){
-   cout << "INSIDE INSTERT FUNCTION: name: " << name << endl;
-   cout << "INSIDE INSTERT FUNCTION: type:" << type << endl;
-   cout << "INSIDE INSTERT FUNCTION:  :offset: " << offset << endl;
+   // cout << "INSIDE INSTERT FUNCTION: name: " << name << endl;
+   // cout << "INSIDE INSTERT FUNCTION: type:" << type << endl;
+   // cout << "INSIDE INSTERT FUNCTION:  :offset: " << offset << endl;
 
 
 
@@ -270,7 +369,6 @@ void insert(string name, string type,int offset){
 }
 
 void yyerror(const char*){
-   extern int yylineno;
    output::errorSyn(yylineno); 
 }
 
