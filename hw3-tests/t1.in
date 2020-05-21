@@ -1,5 +1,8 @@
-void printOk(bool isOk) {
-    if (isOk) print("ok");
+int printOk(bool isOk, int anumber) {
+    if (isOk) printOk(true, 5);
+}
+int foo() {
+    int j=12;
 }
 
 void main()
@@ -7,9 +10,12 @@ void main()
     int x1 = 11;
     int x2 = 12;
     int x3 = 13;
-
-    int d = 6;
-    byte y = 100 b;
-    printOk(x>y);
+    foo();
+    {
+      int y1;
+      int y2=5;
+      printOk(x1>x2, 5);
+    }
+    printOk(x1>x2, 5);
     int z;
 }
