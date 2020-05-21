@@ -39,12 +39,6 @@
 #if YYDEBUG
 extern int yydebug;
 #endif
-/* "%code requires" blocks.  */
-#line 46 "parser.ypp" /* yacc.c:1909  */
-
-   struct Expression;
-
-#line 48 "parser.tab.hpp" /* yacc.c:1909  */
 
 /* Token type.  */
 #ifndef YYTOKENTYPE
@@ -86,24 +80,7 @@ extern int yydebug;
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
-
-union YYSTYPE
-{
-#line 49 "parser.ypp" /* yacc.c:1909  */
-
-   Expression* expression;  
-   bool bool_value;
-   int number;
-   string* str;
-   string* op;
-   string* id_name;
-   const string* type;
-   // going to contain all the possible types
-
-#line 104 "parser.tab.hpp" /* yacc.c:1909  */
-};
-
-typedef union YYSTYPE YYSTYPE;
+typedef int YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1
 #endif

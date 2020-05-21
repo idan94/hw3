@@ -540,9 +540,10 @@ char *yytext;
 // Definition section   
     #include <iostream>
     #include "hw3_output.hpp"
+    #include "utils.hpp"
     #include "parser.tab.hpp"
 
-#line 546 "lex.yy.c"
+#line 547 "lex.yy.c"
 
 #define INITIAL 0
 
@@ -724,11 +725,11 @@ YY_DECL
 	register char *yy_cp, *yy_bp;
 	register int yy_act;
     
-#line 47 "scanner.flex"
+#line 48 "scanner.flex"
 
 
 
-#line 732 "lex.yy.c"
+#line 733 "lex.yy.c"
 
 	if ( !(yy_init) )
 		{
@@ -823,198 +824,205 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 50 "scanner.flex"
+#line 51 "scanner.flex"
 {return VOID;}
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 51 "scanner.flex"
+#line 52 "scanner.flex"
 {return INT;}
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 52 "scanner.flex"
+#line 53 "scanner.flex"
 {return BYTE;}
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 53 "scanner.flex"
+#line 54 "scanner.flex"
 {return B;}
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 54 "scanner.flex"
+#line 55 "scanner.flex"
 {return BOOL;}
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 55 "scanner.flex"
+#line 56 "scanner.flex"
 {return AND;}
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 56 "scanner.flex"
+#line 57 "scanner.flex"
 {return OR;}
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 57 "scanner.flex"
+#line 58 "scanner.flex"
 {return NOT;}
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 58 "scanner.flex"
+#line 59 "scanner.flex"
 {return TRUE;}
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 59 "scanner.flex"
+#line 60 "scanner.flex"
 {return FALSE;}
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 60 "scanner.flex"
+#line 61 "scanner.flex"
 {return RETURN;}
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 61 "scanner.flex"
+#line 62 "scanner.flex"
 {return IF;}
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 62 "scanner.flex"
+#line 63 "scanner.flex"
 {return ELSE;}
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 63 "scanner.flex"
+#line 64 "scanner.flex"
 {return WHILE;}
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 64 "scanner.flex"
+#line 65 "scanner.flex"
 {return BREAK;}
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 65 "scanner.flex"
+#line 66 "scanner.flex"
 {return CONTINUE;}
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 66 "scanner.flex"
+#line 67 "scanner.flex"
 {return SC;}
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 67 "scanner.flex"
+#line 68 "scanner.flex"
 {return COMMA;}
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 68 "scanner.flex"
+#line 69 "scanner.flex"
 {return LPAREN;}
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 69 "scanner.flex"
+#line 70 "scanner.flex"
 {return RPAREN;}
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 70 "scanner.flex"
+#line 71 "scanner.flex"
 {return LBRACE;}
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 71 "scanner.flex"
+#line 72 "scanner.flex"
 {return RBRACE;}
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 72 "scanner.flex"
+#line 73 "scanner.flex"
 {return ASSIGN;}
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 73 "scanner.flex"
+#line 74 "scanner.flex"
 {
-                yylval.op=new string(yytext);
+                yylval=new Expression();
+                yylval->op=(yytext);
                 return RELATIONAL_RELOP;
                 }
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 77 "scanner.flex"
+#line 79 "scanner.flex"
 {
-                yylval.op=new string(yytext);
+                yylval=new Expression();
+                yylval->op=(yytext);
                 return EQUALITY_RELOP;
             }
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 81 "scanner.flex"
+#line 84 "scanner.flex"
 {   
-            yylval.op=new string(yytext);
+            yylval=new Expression();
+            yylval->op=(yytext);
             return ADD_BINOP;
         }
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 85 "scanner.flex"
+#line 89 "scanner.flex"
 {
-            yylval.op=new string(yytext);
+            yylval=new Expression();
+            yylval->op=(yytext);
             return MUL_BINOP;
         }
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 89 "scanner.flex"
+#line 94 "scanner.flex"
 {
-            yylval.id_name=new string(yytext);;
+            yylval=new Expression();
+            yylval->id_name=(yytext);;
             return ID;
         }
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 93 "scanner.flex"
+#line 99 "scanner.flex"
 {
-                    yylval.number=atoi(yytext);
+                    yylval=new Expression();
+                    yylval->number= atoi(yytext);
                     return NUM;
                 }
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 97 "scanner.flex"
+#line 104 "scanner.flex"
 {
-                    yylval.str=new string(yytext);
+                    yylval=new Expression();
+                    yylval->str=(yytext);
                     return STRING;
                 }
 	YY_BREAK
 case 31:
 /* rule 31 can match eol */
 YY_RULE_SETUP
-#line 101 "scanner.flex"
+#line 109 "scanner.flex"
 ;
 	YY_BREAK
 case 32:
 /* rule 32 can match eol */
 YY_RULE_SETUP
-#line 102 "scanner.flex"
+#line 110 "scanner.flex"
 ;
 	YY_BREAK
 case 33:
 YY_RULE_SETUP
-#line 103 "scanner.flex"
+#line 111 "scanner.flex"
 {output::errorLex(yylineno); exit(1);}
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 105 "scanner.flex"
+#line 113 "scanner.flex"
 ECHO;
 	YY_BREAK
-#line 1018 "lex.yy.c"
+#line 1026 "lex.yy.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -2020,6 +2028,6 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 105 "scanner.flex"
+#line 113 "scanner.flex"
 
 
