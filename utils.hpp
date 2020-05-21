@@ -9,8 +9,8 @@
 
 using namespace std;
 
-struct Node{};
-struct Expression: public Node{
+
+struct Expression{
    string id_name;
    string type;
    bool bool_value;

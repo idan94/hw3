@@ -28,6 +28,7 @@
    const string TYPE_BOOL   = "bool";
    const string TYPE_BYTE   = "byte";
    const string TYPE_STRING = "string";
+   const string TYPE_VOID = "void";
   
    int yylex();
    void yyerror(const char*);
@@ -162,6 +163,12 @@ Marker1:       /*epsilon*/       {
       t = make_table(NULL);
       push_tables(t);
       push_offsets(0);
+      void insert(string name, string type,int offset, bool is_offset)
+      // TODO: add cohersion from int to byte
+      // these are the built in functions of the language
+      insert("print",gen_fun_type(TYPE_VOID,TYPE_STRING),0,false);
+      insert("printi",gen_fun_type(TYPE_VOID,TYPE_INT),0,false);
+
 }
 Funcs:         /*epsilon*/       {}
                | FuncDecl Funcs        {}
@@ -259,6 +266,7 @@ Statement:
                   top_offsets() += 1;
                }
                | Type ID ASSIGN Exp SC       {
+                  // TODO: check missmatch of types
                   if(name_exists_in_table($2->id_name,*tables)){
                      output::errorDef(yylineno,$2->id_name);
                      exit(0);
@@ -267,6 +275,11 @@ Statement:
                   top_offsets() += 1;
                }
                | ID ASSIGN Exp SC         {
+                  // TODO: check missmatch of types
+                  string id_type = get_id_type($1->id_name,*tokens);
+                  if(!id_type.equals($3->type)){
+                     cout << id_type << " not equal to- " << $3->type << endl;
+                  }
                   if(!name_exists_in_table($2->id_name,*tables)){
                      output::errorUndef(yylineno,$2->id_name);
                      exit(0);

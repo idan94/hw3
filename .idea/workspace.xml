@@ -57,9 +57,10 @@
     <option name="version" value="1" />
   </component>
   <component name="WindowStateProjectService">
-    <state x="508" y="212" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1589810883381">
-      <screen x="0" y="23" width="1792" height="1016" />
+    <state x="508" y="212" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1590067042276">
+      <screen x="0" y="23" width="1792" height="1015" />
     </state>
+    <state x="508" y="212" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.23.1792.1015@0.23.1792.1015" timestamp="1590067042276" />
     <state x="508" y="212" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.23.1792.1016@0.23.1792.1016" timestamp="1589810883381" />
   </component>
 </project>
