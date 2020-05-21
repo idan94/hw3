@@ -163,7 +163,6 @@ Marker1:       /*epsilon*/       {
       t = make_table(NULL);
       push_tables(t);
       push_offsets(0);
-      void insert(string name, string type,int offset, bool is_offset)
       // TODO: add cohersion from int to byte
       // these are the built in functions of the language
       insert("print",gen_fun_type(TYPE_VOID,TYPE_STRING),0,false);
@@ -276,8 +275,8 @@ Statement:
                }
                | ID ASSIGN Exp SC         {
                   // TODO: check missmatch of types
-                  string id_type = get_id_type($1->id_name,*tokens);
-                  if(!id_type.equals($3->type)){
+                  string id_type = get_id_type($1->id_name,*tables);
+                  if(!(id_type.compare($3->type) == 0)){
                      cout << id_type << " not equal to- " << $3->type << endl;
                   }
                   if(!name_exists_in_table($2->id_name,*tables)){
