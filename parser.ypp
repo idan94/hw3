@@ -25,7 +25,7 @@
    void push_offsets(int offset);
    map<string,pair<string, int>> &top_tables();
    int &top_offsets();
-   void insert(string name, string type,int offset);
+   void insert(string name, string type,int offset, bool is_fun);
 
    const string TYPE_INT    = "INT";
    const string TYPE_BOOL   = "BOOL";
@@ -40,6 +40,17 @@
    stack<int>* offsets = NULL;
 
    map<string,pair<string, int>>* t = NULL;
+
+   bool assign_type_check(string var,string exp) {
+      // the string compare function will return 0 (false) only if the string are the same
+      if(var.compare(exp)){
+         if(var.compare(TYPE_INT) || exp.compare(TYPE_BYTE))  {
+            return false;
+         }
+      }
+      return true;
+   }
+
 
    string vectorToString(const std::vector<string>& argTypes) {
       string res;
@@ -119,12 +130,12 @@
       delete tabels_clone;
       return false;
    } 
-   void print_map_inc_offset(map<string, pair<string, int>> scope_map){
+
+   void print_map_by_order(map<string, pair<string, int>> scope_map){
       for (auto element : scope_map){
          output::printID(element.first, element.second.second, element.second.first);
       }
    }
-
 
    template<class input_class, class output_class>
    void print_stack_of_maps(stack<map<input_class, output_class>> s) {
@@ -132,7 +143,7 @@
       while (!clone->empty()) {
          map<input_class, output_class> m = clone->top();
          clone->pop();
-         print_map_inc_offset(m);
+         print_map_by_order(m);
       }
       delete (clone);
    }
@@ -171,14 +182,20 @@
 %%
 
 Program:       Marker1 Funcs       {
-
-   //TODO: check main
    if(!name_exists_in_table("main",*tables,true)){
       output::errorMainMissing();
       exit(0);
+   }else{
+      string fun_sign = get_id_type("main" ,*tables);
+      string ret_type = fun_sign.substr(fun_sign.find("->")+2, fun_sign.size()-1);
+      string function_args = fun_sign.substr(0,fun_sign.find("->"));
+      if(ret_type.compare(TYPE_VOID) || function_args.compare("()")){
+         output::errorMainMissing();
+         exit(0);
+      }
    }
    output::endScope();
-   print_map_inc_offset(tables->top());
+   print_map_by_order(tables->top());
    pop_tables();
    pop_offsets();
 }
@@ -189,24 +206,19 @@ Marker1:       /*epsilon*/       {
       push_offsets(0);
       vector<string> args_to_print;
       args_to_print.push_back(TYPE_STRING);
-      insert("print", output::makeFunctionType(TYPE_VOID, args_to_print),0);
+      insert("print", output::makeFunctionType(TYPE_VOID, args_to_print),0, true);
       args_to_print.clear();
       args_to_print.push_back(TYPE_INT);
-      insert("printi", output::makeFunctionType(TYPE_VOID, args_to_print),0);
+      insert("printi", output::makeFunctionType(TYPE_VOID, args_to_print),0, true);
 }
 Funcs:         /*epsilon*/       {}
                | FuncDecl Funcs        {}
 ;
 FuncDecl:      FuncDeclPart1 FuncDeclPart2 {}
 ;
-FuncDeclPart1:  RetType ID LPAREN Formals RPAREN{
-   //TODO: check if function and var may have the same name.
-      if(name_exists_in_table($2->id_name,*tables)){
-         output::errorDef(yylineno,$2->id_name);
-         exit(0);
-      }
+FuncDeclPart1:  RetType ID LPAREN Formals RPAREN{      
       auto function_args = split_str($4->type, ",");
-      insert($2->id_name,output::makeFunctionType($1->type, function_args),0);
+      insert($2->id_name,output::makeFunctionType($1->type, function_args),0, true);
 
       t = make_table(&top_tables());
       push_tables(t);
@@ -220,7 +232,7 @@ FuncDeclPart1:  RetType ID LPAREN Formals RPAREN{
       auto it_types = types.begin();
       int offset = 0;
       while (it_names != id_names.end() || it_types != types.end()) {
-         insert(*it_names, *it_types, --offset);
+         insert(*it_names, *it_types, --offset, false);
          it_names++;
          it_types++;
       } 
@@ -232,7 +244,7 @@ RetType:       Type        {
 }
                | VOID         {
                   $$ = new Expression();
-                  $$->type = "void";
+                  $$->type = TYPE_VOID;
 }
 ;
 Formals:       /*epsilon*/       {
@@ -277,27 +289,22 @@ Statement:
                   check_bool_exp(*$3);
                }
                /* ^^^ Moved here If and While roles. solving 'Dangling Else' ^^^ */
-               | LBRACE Marker2 Statements RBRACE  {
-               }
+               | LBRACE Marker2 Statements Marker3 RBRACE  {}
                | Type ID SC         {
-                  if(name_exists_in_table($2->id_name,*tables)){
-                     output::errorDef(yylineno,$2->id_name);
-                     exit(0);
-                  }
-                  insert($2->id_name,$1->type, top_offsets());
+                  insert($2->id_name,$1->type, top_offsets(), false);
                   top_offsets() += 1;
                }
                | Type ID ASSIGN Exp SC       {
-                  if(name_exists_in_table($2->id_name,*tables)){
-                     output::errorDef(yylineno,$2->id_name);
-                     exit(0);
-                  }
-                  insert($2->id_name,$1->type, top_offsets());
+                  //TODO: 
+                  assign_type_check($1->type, $4->type);
+                  insert($2->id_name,$1->type, top_offsets(), false);
                   top_offsets() += 1;
                }
                | ID ASSIGN Exp SC         {
-                  if(!name_exists_in_table($2->id_name,*tables)){
-                     output::errorUndef(yylineno,$2->id_name);
+                  //TODO:
+                  assign_type_check(get_id_type($1->type, *tables), $3->type);
+                  if(!name_exists_in_table($1->id_name,*tables)){
+                     output::errorUndef(yylineno,$1->id_name);
                      exit(0);
                   }
                }
@@ -314,7 +321,7 @@ Marker2:       /*epsilon*/        {
 }
 Marker3:       /*epsilon*/        {
       output::endScope();
-      print_map_inc_offset(tables->top());
+      print_map_by_order(tables->top());
       pop_tables();
       pop_offsets();
 }
@@ -331,10 +338,20 @@ Call:          ID LPAREN ExpList RPAREN         {
                      string ret_type = fun_sign.substr(fun_sign.find("->")+2, fun_sign.size()-1);
                      vector<string> function_args = split_str(fun_sign.substr(0,fun_sign.find("->")),",");
                      vector<string> given_args = split_str($3->type,",");
-                     if(function_args != given_args){
+
+                     if(function_args.size() != given_args.size()){
                         output::errorPrototypeMismatch(yylineno,$1->id_name,function_args);
                         exit(0);
                      }
+                     for(int i=0; i< function_args.size() || i< given_args.size(); i++){
+                        if(function_args[i].compare(given_args[i]) &&
+                           (function_args[i].compare(TYPE_INT) || given_args[i].compare(TYPE_BYTE))   )
+                           {
+                              output::errorPrototypeMismatch(yylineno,$1->id_name,function_args);
+                              exit(0);
+                           }
+                     }
+
                      /* Rule #5 hw's PDF */
                      $$->type = fun_sign.substr(fun_sign.find("->")+2, fun_sign.size()-1);
                   }
@@ -500,7 +517,11 @@ int &top_offsets(){
    return offsets->top();
 }
 
-void insert(string name, string type,int offset){
+void insert(string name, string type,int offset, bool is_fun){
+   if(name_exists_in_table(name,*tables)){
+      output::errorDef(yylineno,name);
+      exit(0);
+   }
    (tables->top()).insert({
          name,
          pair<string ,int>(type,offset)

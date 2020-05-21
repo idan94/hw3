@@ -2,7 +2,7 @@ void printOk(bool isOk) {
     if (isOk) print("ok");
 }
 
-void main()
+void main(int a)
 {
     int x = 4;
     byte y = 100 b;
