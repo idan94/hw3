@@ -27,6 +27,7 @@
    void push_regular_scope();
    void pop_scope();
    void push_while_scope();
+   void push_top_scope();
    map<string,pair<string, int>> &top_tables();
    int &top_offsets();
    void insert(string name, string type,int offset, bool is_fun);
@@ -235,6 +236,7 @@ FuncDeclPart1:  RetType ID LPAREN Formals RPAREN{
       insert($2->id_name,output::makeFunctionType($1->type, function_args),0, true);
       push_tables();
       push_offsets(top_offsets());
+      push_regular_scope();
 
       auto id_names = split_str($4->id_name,",");
       auto types = split_str($4->type,",");
@@ -335,7 +337,7 @@ Statement:
                | RETURN SC       {}
                | RETURN Exp SC         {}
                | BREAK SC        {
-                  if(!check_leagal_break){
+                  if(!check_leagal_break()){
                      output::errorUnexpectedBreak(yylineno);
                      exit(0);
                   }
@@ -346,7 +348,14 @@ Marker2:       /*epsilon*/        {
       // this marker pushes a scope of type regular
       push_tables();
       push_offsets(top_offsets());
-      push_regular_scope();
+      // the reason we use push top scope, is if we are in a while scope, and we open a new scope
+      // we can still use break
+      // TODO: check this
+      // IMPORTANT!!! this mechanizem makes sure that the while break will work at all !
+      // because the while opens a new scope and inside it, the statment opens another scope
+      // and because the while pushes a while_scope to the scope stack
+      // this marker keeps the break leagal inside the while
+      push_top_scope();
 }
 Marker3:       /*epsilon*/        {
       output::endScope();
@@ -583,10 +592,15 @@ void pop_scope(){
 void push_while_scope(){
    scope_type->push(WHILE_SCOPE);
 }
+
+void push_top_scope(){
+   scope_type->push(scope_type->top());
+}
+
 bool check_leagal_break(){
    // current_scope_type.comapre(REGULAR_SCOPE) will be 0 (false) if we are in a regular scope
    // meaning not in a while scope, and so breack is ileagal
-   if(scope_type->top().compare(REGULAR_SCOPE)){
+   if(scope_type->top().compare(WHILE_SCOPE)){
      return false;
    }
    return true;
