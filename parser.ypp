@@ -10,6 +10,7 @@
    #include <set>
    #include <algorithm>
    #include <functional>
+   #include <queue>
    using namespace std;
    extern int yylineno;
 
@@ -18,10 +19,9 @@
    string binop(Expression a, Expression b);
    void check_bool_exp(Expression exp);
 
-   map<string,pair<string, int>>* make_table(map<string,pair<string, int>>* parent);
    void pop_tables();
    void pop_offsets();
-   void push_tables(map<string,pair<string, int>>* table);
+   void push_tables();
    void push_offsets(int offset);
    map<string,pair<string, int>> &top_tables();
    int &top_offsets();
@@ -37,6 +37,7 @@
    void yyerror(const char*);
 
    stack<map<string,pair<string, int>>>* tables = NULL;
+   stack<queue<string>>* insertion_orders = NULL;
    stack<int>* offsets = NULL;
 
    map<string,pair<string, int>>* t = NULL;
@@ -131,9 +132,14 @@
       return false;
    } 
 
-   void print_map_by_order(map<string, pair<string, int>> scope_map){
-      for (auto element : scope_map){
-         output::printID(element.first, element.second.second, element.second.first);
+   void print_map_by_order(map<string, pair<string, int>> scope_map,queue<string> orders){
+      queue<string>* clone = new queue<string> (orders);
+      string name;
+      while (clone->size()!= 0){
+         name = clone->front();
+         clone->pop();
+         auto element = scope_map[name];
+         output::printID(name, element.second, element.first);
       }
    }
 
@@ -195,14 +201,13 @@ Program:       Marker1 Funcs       {
       }
    }
    output::endScope();
-   print_map_by_order(tables->top());
+   print_map_by_order(tables->top(),insertion_orders->top());
    pop_tables();
    pop_offsets();
 }
 ;
 Marker1:       /*epsilon*/       {
-      t = make_table(NULL);
-      push_tables(t);
+      push_tables();
       push_offsets(0);
       vector<string> args_to_print;
       args_to_print.push_back(TYPE_STRING);
@@ -219,9 +224,7 @@ FuncDecl:      FuncDeclPart1 FuncDeclPart2 {}
 FuncDeclPart1:  RetType ID LPAREN Formals RPAREN{      
       auto function_args = split_str($4->type, ",");
       insert($2->id_name,output::makeFunctionType($1->type, function_args),0, true);
-
-      t = make_table(&top_tables());
-      push_tables(t);
+      push_tables();
       push_offsets(top_offsets());
 
       auto id_names = split_str($4->id_name,",");
@@ -315,13 +318,12 @@ Statement:
                | CONTINUE SC        {}
 ;
 Marker2:       /*epsilon*/        {
-      t = make_table(&top_tables());
-      push_tables(t);
+      push_tables();
       push_offsets(top_offsets());
 }
 Marker3:       /*epsilon*/        {
       output::endScope();
-      print_map_by_order(tables->top());
+      print_map_by_order(tables->top(),insertion_orders->top());
       pop_tables();
       pop_offsets();
 }
@@ -491,20 +493,17 @@ void check_bool_exp(Expression exp){
 }
 
 
-
-
-map<string,pair<string, int>>* make_table(map<string,pair<string, int>>* parent){
-   // <Name, part<Type, Offset>>
-   return new map<string,pair<string, int>>();
-}
 void pop_tables(){
    tables->pop();
+   insertion_orders->pop();
 }
 void pop_offsets(){
    offsets->pop();
 }
-void push_tables(map<string,pair<string, int>>* table){
-   tables->push(*table);
+void push_tables(){
+   tables->push(map<string,pair<string, int>>());
+   insertion_orders->push(queue<string>());
+   
 }
 void push_offsets(int offset){
    offsets->push(offset);
@@ -526,6 +525,7 @@ void insert(string name, string type,int offset, bool is_fun){
          name,
          pair<string ,int>(type,offset)
    });
+   insertion_orders->top().push(name);
 }
 
 void yyerror(const char*){
@@ -535,6 +535,7 @@ void yyerror(const char*){
 int main(){
    tables = new stack<map<string,pair<string, int>>>();
    offsets = new stack<int>();
+   insertion_orders = new stack<queue<string>> ();
    return yyparse();
 }
 
