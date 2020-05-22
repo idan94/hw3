@@ -18,11 +18,15 @@
    string log_eq(Expression a, Expression b);
    string binop(Expression a, Expression b);
    void check_bool_exp(Expression exp);
+   bool check_leagal_break();
 
    void pop_tables();
    void pop_offsets();
    void push_tables();
    void push_offsets(int offset);
+   void push_regular_scope();
+   void pop_scope();
+   void push_while_scope();
    map<string,pair<string, int>> &top_tables();
    int &top_offsets();
    void insert(string name, string type,int offset, bool is_fun);
@@ -36,7 +40,11 @@
    int yylex();
    void yyerror(const char*);
 
+   const string WHILE_SCOPE = "while_scope";
+   const string REGULAR_SCOPE = "regular_scope";
+
    stack<map<string,pair<string, int>>>* tables = NULL;
+   stack<string>* scope_type = NULL;
    stack<queue<string>>* insertion_orders = NULL;
    stack<int>* offsets = NULL;
 
@@ -215,6 +223,7 @@ Marker1:       /*epsilon*/       {
       args_to_print.clear();
       args_to_print.push_back(TYPE_INT);
       insert("printi", output::makeFunctionType(TYPE_VOID, args_to_print),0, true);
+      push_regular_scope();
 }
 Funcs:         /*epsilon*/       {}
                | FuncDecl Funcs        {}
@@ -285,10 +294,10 @@ Statement:
                | IF LPAREN Exp RPAREN Marker2 Statement Marker3 ELSE Marker2 Statement Marker3      {
                   check_bool_exp(*$3);
                }
-               | WHILE LPAREN Exp RPAREN Marker2 Statement Marker3    {
+               | WHILE LPAREN Exp RPAREN marker4 Statement Marker3    {
                   check_bool_exp(*$3);
                }
-               | WHILE LPAREN Exp RPAREN Marker2 Statement Marker3 ELSE Marker2 Statement Marker3      {
+               | WHILE LPAREN Exp RPAREN marker4 Statement Marker3 ELSE Marker2 Statement Marker3      {
                   check_bool_exp(*$3);
                }
                /* ^^^ Moved here If and While roles. solving 'Dangling Else' ^^^ */
@@ -325,18 +334,32 @@ Statement:
                | Call SC         {}
                | RETURN SC       {}
                | RETURN Exp SC         {}
-               | BREAK SC        {}
+               | BREAK SC        {
+                  if(!check_leagal_break){
+                     output::errorUnexpectedBreak(yylineno);
+                     exit(0);
+                  }
+               }
                | CONTINUE SC        {}
 ;
 Marker2:       /*epsilon*/        {
+      // this marker pushes a scope of type regular
       push_tables();
       push_offsets(top_offsets());
+      push_regular_scope();
 }
 Marker3:       /*epsilon*/        {
       output::endScope();
       print_map_by_order(tables->top(),insertion_orders->top());
       pop_tables();
       pop_offsets();
+      pop_scope();
+}
+marker4:       /*epsilon*/        {
+      //this marker pushed a scope of type while
+      push_tables();
+      push_offsets(top_offsets());
+      push_while_scope();
 }
 ;
 Call:          ID LPAREN ExpList RPAREN         {
@@ -547,8 +570,28 @@ int main(){
    tables = new stack<map<string,pair<string, int>>>();
    offsets = new stack<int>();
    insertion_orders = new stack<queue<string>> ();
+   scope_type = new stack<string>();
    return yyparse();
 }
+
+void push_regular_scope(){
+   scope_type->push(REGULAR_SCOPE);
+}
+void pop_scope(){
+   scope_type->pop();
+}
+void push_while_scope(){
+   scope_type->push(WHILE_SCOPE);
+}
+bool check_leagal_break(){
+   // current_scope_type.comapre(REGULAR_SCOPE) will be 0 (false) if we are in a regular scope
+   // meaning not in a while scope, and so breack is ileagal
+   if(scope_type->top().compare(REGULAR_SCOPE)){
+     return false;
+   }
+   return true;
+}
+
 
 
 
