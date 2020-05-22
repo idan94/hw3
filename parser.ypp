@@ -298,16 +298,27 @@ Statement:
                   top_offsets() += 1;
                }
                | Type ID ASSIGN Exp SC       {
-                  //TODO: 
                   assign_type_check($1->type, $4->type);
                   insert($2->id_name,$1->type, top_offsets(), false);
                   top_offsets() += 1;
+                  // we need to check if the number is not larger then 255
+                  //TODO: check what to do with negative numbers ? 
+                  if(!TYPE_BYTE.compare($1->type) && $4->number > 255){
+                     output::errorByteTooLarge(yylineno,to_string($$->number));
+                     exit(0); 
+                  }
                }
                | ID ASSIGN Exp SC         {
-                  //TODO:
-                  assign_type_check(get_id_type($1->type, *tables), $3->type);
+                  assign_type_check(get_id_type($1->id_name, *tables), $3->type);
                   if(!name_exists_in_table($1->id_name,*tables)){
                      output::errorUndef(yylineno,$1->id_name);
+                     exit(0);
+                  }
+                  // we need to check if the number is not larger then 255
+                  // TODO: check what to do with negative numbers ?
+                  if(!TYPE_BYTE.compare(get_id_type($1->id_name, *tables)) && $3->number > 255){
+                     cout << " i am here 2" << endl;
+                     output::errorByteTooLarge(yylineno,to_string($$->number));
                      exit(0);
                   }
                }
