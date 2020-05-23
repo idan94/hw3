@@ -1,5 +1,5 @@
 all: clean
-	flex scanner.flex
+	flex scanner.lex
 	bison -d parser.ypp
 	g++ -g3 -std=gnu++0x -o hw3 *.c *.cpp
 clean:

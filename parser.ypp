@@ -18,7 +18,7 @@
    string log_eq(Expression a, Expression b);
    string binop(Expression a, Expression b);
    void check_bool_exp(Expression exp);
-   bool check_leagal_break();
+   bool check_while_scope();
 
    void pop_tables();
    void pop_offsets();
@@ -60,7 +60,35 @@
       }
       return true;
    }
-
+   string get_id_type(const string name, const stack<map<string, pair<string, int>>> &tables){
+      stack<map<string, pair<string, int>>> *tabels_clone = new stack<map<string, pair<string, int>>>(tables);
+      while (!tabels_clone->empty()) {
+         auto table = tabels_clone->top();
+         tabels_clone->pop();
+         auto it= table.find(name);
+         if (it != table.end()) {
+               // if reached here, that means the key already is in some table
+               string id_type = it->second.first;
+               delete tabels_clone;
+               return id_type;
+         }
+      }
+      delete tabels_clone;
+      output::errorUndef(yylineno, name);
+      exit(0);
+   }
+   string get_current_function_return_type(const stack<queue<string>> stack_queues){
+      auto *tabels_clone = new  stack<queue<string>>(stack_queues);
+      while(tabels_clone->size()>1){
+         tabels_clone->pop();
+      }
+      auto *functions_queue = new queue<string>(tabels_clone->top());
+      string function_name = functions_queue->back();
+      string function_sign = get_id_type(function_name,*tables);
+      delete functions_queue;
+      delete tabels_clone;
+      return function_sign.substr(function_sign.find("->")+2, function_sign.size()-1);
+   }
 
    string vectorToString(const std::vector<string>& argTypes) {
       string res;
@@ -93,23 +121,7 @@
       return tokens;
    }
 
-   string get_id_type(const string name, const stack<map<string, pair<string, int>>> &tables){
-      stack<map<string, pair<string, int>>> *tabels_clone = new stack<map<string, pair<string, int>>>(tables);
-      while (!tabels_clone->empty()) {
-         auto table = tabels_clone->top();
-         tabels_clone->pop();
-         auto it= table.find(name);
-         if (it != table.end()) {
-               // if reached here, that means the key already is in some table
-               string id_type = it->second.first;
-               delete tabels_clone;
-               return id_type;
-         }
-      }
-      delete tabels_clone;
-      output::errorUndef(yylineno, name);
-      exit(0);
-   }
+
 
    bool name_exists_in_table(const string name,const stack<map<string, pair<string, int>>> &tables, bool is_fun=false){
       /*
@@ -334,15 +346,30 @@ Statement:
                   }
                }
                | Call SC         {}
-               | RETURN SC       {}
-               | RETURN Exp SC         {}
+               | RETURN SC       {
+                  if(get_current_function_return_type(*insertion_orders).compare(TYPE_VOID)){
+                     output::errorMismatch(yylineno);
+                     exit(0);
+                  }
+               }
+               | RETURN Exp SC         {
+                  if(get_current_function_return_type(*insertion_orders).compare($2->type)){
+                     output::errorMismatch(yylineno);
+                     exit(0);
+                  }
+               }
                | BREAK SC        {
-                  if(!check_leagal_break()){
+                  if(!check_while_scope()){
                      output::errorUnexpectedBreak(yylineno);
                      exit(0);
                   }
                }
-               | CONTINUE SC        {}
+               | CONTINUE SC        {
+                  if(!check_while_scope()){
+                     output::errorUnexpectedContinue(yylineno);
+                     exit(0);
+                  }
+               }
 ;
 Marker2:       /*epsilon*/        {
       // this marker pushes a scope of type regular
@@ -597,7 +624,7 @@ void push_top_scope(){
    scope_type->push(scope_type->top());
 }
 
-bool check_leagal_break(){
+bool check_while_scope(){
    // current_scope_type.comapre(REGULAR_SCOPE) will be 0 (false) if we are in a regular scope
    // meaning not in a while scope, and so breack is ileagal
    if(scope_type->top().compare(WHILE_SCOPE)){
