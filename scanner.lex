@@ -2,8 +2,9 @@
 // Definition section   
     #include <iostream>
     #include "hw3_output.hpp"
-    #include "utils.hpp"
+    #include "structs.hpp"
     #include "parser.tab.hpp"
+    // #include "utils.hpp"
 
 %}
 
@@ -72,38 +73,31 @@ IGNORE        [ \t\n\r]
 {RBRACE}        {return RBRACE;}
 {ASSIGN}        {return ASSIGN;}
 {RELATIONAL_RELOP}  {
-                yylval=new Expression();
-                yylval->op=(yytext);
+                yylval.op=new string(yytext);
                 return RELATIONAL_RELOP;
                 }
 {EQUALITY_RELOP}    {
-                yylval=new Expression();
-                yylval->op=(yytext);
+                yylval.op=new string(yytext);
                 return EQUALITY_RELOP;
             }
 {ADD_BINOP}     {   
-            yylval=new Expression();
-            yylval->op=(yytext);
+            yylval.op=new string(yytext);
             return ADD_BINOP;
         }
 {MUL_BINOP}     {
-            yylval=new Expression();
-            yylval->op=(yytext);
+            yylval.op=new string(yytext);
             return MUL_BINOP;
         }
 {ID}            {
-            yylval=new Expression();
-            yylval->id_name=(yytext);;
+            yylval.id_name= new string(yytext);
             return ID;
         }
 {NUM}           {
-                    yylval=new Expression();
-                    yylval->number= atoi(yytext);
+                    yylval.number= atoi(yytext);
                     return NUM;
                 }
 {STRING}        {
-                    yylval=new Expression();
-                    yylval->str=(yytext);
+                    yylval.str=new string(yytext);
                     return STRING;
                 }
 {COMMENT}       ;

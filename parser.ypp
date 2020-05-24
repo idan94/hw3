@@ -6,176 +6,74 @@
    #include <string>
    #include <vector>
    #include <assert.h>
-   #include "utils.hpp"
+   // #include "utils.hpp"
    #include <set>
+   #include "structs.hpp"
    #include <algorithm>
    #include <functional>
    #include <queue>
    using namespace std;
+
    extern int yylineno;
-
-   string relop(string a, string b);
-   string log_eq(string a, string b);
-   string binop(string a, string b);
-   void check_bool_exp(Expression exp);
-   bool check_while_scope();
-
-   void pop_tables();
-   void pop_offsets();
-   void push_tables();
-   void push_offsets(int offset);
-   void push_regular_scope();
-   void pop_scope();
-   void push_while_scope();
-   void push_top_scope();
-   map<string,pair<string, int>> &top_tables();
-   int &top_offsets();
-   void insert(string name, string type,int offset, bool is_fun);
-
+   const string WHILE_SCOPE = "while_scope";
+   const string REGULAR_SCOPE = "regular_scope";
    const string TYPE_INT    = "INT";
    const string TYPE_BOOL   = "BOOL";
    const string TYPE_BYTE   = "BYTE";
    const string TYPE_STRING = "STRING";
    const string TYPE_VOID = "VOID";
-  
+   stack<map<string,pair<string, int>>>* tables;
+   stack<string>* scope_type;
+   stack<queue<string>>* insertion_orders;
+   stack<int>* offsets;
+   map<string,pair<string, int>>* t;
    int yylex();
    void yyerror(const char*);
 
-   const string WHILE_SCOPE = "while_scope";
-   const string REGULAR_SCOPE = "regular_scope";
-
-   stack<map<string,pair<string, int>>>* tables = NULL;
-   stack<string>* scope_type = NULL;
-   stack<queue<string>>* insertion_orders = NULL;
-   stack<int>* offsets = NULL;
-
-   map<string,pair<string, int>>* t = NULL;
-
-   void assign_type_check(string var,string exp) {
-      // the string compare function will return 0 (false) only if the string are the same
-      if(var.compare(exp)){
-         if(var.compare(TYPE_INT) || exp.compare(TYPE_BYTE))  {
-            output::errorMismatch(yylineno);
-            exit(0);
-         }
-      }
-      return;
-   }
-   string get_id_type(const string name, const stack<map<string, pair<string, int>>> &tables){
-      stack<map<string, pair<string, int>>> *tabels_clone = new stack<map<string, pair<string, int>>>(tables);
-      while (!tabels_clone->empty()) {
-         auto table = tabels_clone->top();
-         tabels_clone->pop();
-         auto it= table.find(name);
-         if (it != table.end()) {
-               // if reached here, that means the key already is in some table
-               string id_type = it->second.first;
-               delete tabels_clone;
-               return id_type;
-         }
-      }
-      delete tabels_clone;
-      output::errorUndef(yylineno, name);
-      exit(0);
-   }
-   string get_current_function_return_type(const stack<queue<string>> stack_queues){
-      auto *tabels_clone = new  stack<queue<string>>(stack_queues);
-      while(tabels_clone->size()>1){
-         tabels_clone->pop();
-      }
-      auto *functions_queue = new queue<string>(tabels_clone->top());
-      string function_name = functions_queue->back();
-      string function_sign = get_id_type(function_name,*tables);
-      delete functions_queue;
-      delete tabels_clone;
-      return function_sign.substr(function_sign.find("->")+2, function_sign.size()-1);
-   }
-
-   string vectorToString(const std::vector<string>& argTypes) {
-      string res;
-      res = "(";
-      for(int i = 0; i < argTypes.size(); ++i) {
-         res.append(argTypes[i]);
-         if (i + 1 < argTypes.size())
-            res.append(",");
-      }
-      res.append(")");
-      return res;
-   }
-   // Gets a string and 
-   vector<string> split_str(string str, string delimiter){
-      if(str[0] == '('){
-         str.erase(0,1);
-      }
-      if(str[str.length()-1] == ')'){
-         str.erase(str.length()-1,1);
-      }
-      vector<string> tokens;
-      size_t position = 0;
-      while ((position = str.find(delimiter)) != string::npos) {
-         tokens.push_back(str.substr(0, position));
-         str.erase(0,position + delimiter.length());
-      }
-      if(tokens.size()!=0 || !str.empty()){
-         tokens.push_back(str);
-      }
-      return tokens;
-   }
-
-
-
-   bool name_exists_in_table(const string name,const stack<map<string, pair<string, int>>> &tables, bool is_fun=false){
-      /*
-      * this function will get a pointer to a string representing a name and a stack of tables
-      * the function will return true if the name is already in the tables and false otherwise
-      */
-      stack<map<string, pair<string, int>>> *tabels_clone = new stack<map<string, pair<string, int>>>(tables);
-      while (!tabels_clone->empty()) {
-         auto table = tabels_clone->top();
-         tabels_clone->pop();
-         // in c++11 table.contains doesnt exist yet, so to find if the key
-         // exists in the table, we search an iterator, and if we got to the end
-         // of the table, that means the value is not there
-         auto it= table.find(name);
-         if (it != table.end()) {
-               // if reached here, that means the key already is in some table
-               if(is_fun){
-                  string id_type = it->second.first;
-                  if(id_type.find("->") == string::npos){
-                     return false;
-                  }
-               }
-               // if reached here, that means the key already is in some table
-               delete tabels_clone;
-               return true;
-         }
-      }
-      delete tabels_clone;
-      return false;
-   } 
-
-   void print_map_by_order(map<string, pair<string, int>> scope_map,queue<string> orders){
-      queue<string>* clone = new queue<string> (orders);
-      string name;
-      while (clone->size()!= 0){
-         name = clone->front();
-         clone->pop();
-         auto element = scope_map[name];
-         output::printID(name, element.second, element.first);
-      }
-   }
-
+   
+   bool name_exists_in_table(const string name,const stack<map<string, pair<string, int>>> &tables, bool is_fun=false);
+      /* Rule #8 hw's PDF */
+   string relop(string a, string b);
+   /* Rule #9 hw's PDF */
+   string log_eq(string a, string b);
+   /* Rule #10 hw's PDF */
+   string binop(string a, string b);
+   /* Rule #16 hw's PDF */
+   void check_bool_exp(string exp_type);
+   void pop_tables();
+   void pop_offsets();
+   void push_tables();
+   void push_offsets(int offset);
+   map<string,pair<string, int>> &top_tables();
+   int &top_offsets();
+   void insert(string name, string type,int offset, bool is_fun);
+   void yyerror(const char*);
+   void push_regular_scope();
+   void pop_scope();
+   void push_while_scope();
+   void push_top_scope();
+   bool check_while_scope();
+   void assign_type_check(string var,string exp);
+   string get_id_type(const string name, const stack<map<string, pair<string, int>>> &tables);
+   string get_current_function_return_type(const stack<queue<string>> stack_queues);
+   string vectorToString(const std::vector<string>& argTypes);
+   vector<string> split_str(string str, string delimiter);
+   void print_map_by_order(map<string, pair<string, int>> scope_map,queue<string> orders);
    template<class input_class, class output_class>
-   void print_stack_of_maps(stack<map<input_class, output_class>> s) {
-      stack<map<input_class, output_class>> *clone = new stack<map<input_class, output_class>>(s);
-      while (!clone->empty()) {
-         map<input_class, output_class> m = clone->top();
-         clone->pop();
-         print_map_by_order(m);
-      }
-      delete (clone);
-   }
+   void print_stack_of_maps(stack<map<input_class, output_class>> s);
 %}
+
+%union{
+   int number;
+   string* type;
+   string* op;
+   bool bool_value;
+   string* id_name;
+   string* str;
+   string* return_type;
+   Expression* expression;
+   Formal* formal;
+}
 
 %nonassoc VOID    
 %nonassoc INT     
@@ -196,17 +94,26 @@
 %right ASSIGN 
 %left OR   
 %left AND    
-%left EQUALITY_RELOP   
-%nonassoc RELATIONAL_RELOP
-%left ADD_BINOP 
-%left MUL_BINOP  
+%left <op> EQUALITY_RELOP   
+%nonassoc <op> RELATIONAL_RELOP
+%left <op> ADD_BINOP 
+%left <op> MUL_BINOP  
 %right NOT    
 %left LPAREN  
 %left RPAREN 
 %nonassoc ELSE //Take Else Before RPAREN ')'
-%nonassoc ID      
-%nonassoc NUM     
-%nonassoc STRING  
+%nonassoc <id_name> ID      
+%nonassoc <number> NUM     
+%nonassoc <str> STRING  
+
+%type <expression> Exp
+%type <type> RetType
+%type <formal> Formals
+%type <formal> FormalsList
+%type <formal> FormalsDecl
+%type <return_type> Call
+%type <expression> ExpList
+%type <type> Type
 %%
 
 Program:       Marker1 Funcs       {
@@ -246,11 +153,11 @@ FuncDecl:      FuncDeclPart1 FuncDeclPart2 {}
 ;
 FuncDeclPart1:  RetType ID LPAREN Formals RPAREN{      
       auto function_args = split_str($4->type, ",");
-      insert($2->id_name,output::makeFunctionType($1->type, function_args),0, true);
+      insert(*$2,output::makeFunctionType(*$1, function_args),0, true);
       push_tables();
       push_offsets(top_offsets());
       push_regular_scope();
-
+      
       auto id_names = split_str($4->id_name,",");
       auto types = split_str($4->type,",");
 
@@ -266,36 +173,38 @@ FuncDeclPart1:  RetType ID LPAREN Formals RPAREN{
 }
 FuncDeclPart2:  LBRACE Statements RBRACE Marker3 {}
 RetType:       Type        {
-                  $$ = new Expression();
-                  $$->type = $1->type;
+                  $$ = new string(*$1);
 }
                | VOID         {
-                  $$ = new Expression();
-                  $$->type = TYPE_VOID;
+                  $$ = new string(TYPE_VOID);
 }
 ;
 Formals:       /*epsilon*/       {
-                  $$ = new Expression();
+                  $$ = new Formal();
                   $$->type = "";
                   $$->id_name = "";
 }
                | FormalsList        {
+                  $$ = new Formal();
                   $$->type = $1->type;
                   $$->id_name = $1->id_name;
 }
 ;
 FormalsList:   FormalsDecl       {
+                  $$ = new Formal();
                   $$->type = $1->type;
                   $$->id_name = $1->id_name;
 }
                | FormalsDecl COMMA FormalsList        {
+                  $$ = new Formal();
                   $$->type= ($1->type).append(",").append($3->type);
                   $$->id_name= ($1->id_name).append(",").append($3->id_name);
                }
 ;
 FormalsDecl:   Type ID        {
-                  $$->type = $1->type;
-                  $$->id_name = $2->id_name;
+                  $$ = new Formal();
+                  $$->type = *$1;
+                  $$->id_name = *$2;
 }
 ;
 Statements:    Statement         {}
@@ -304,45 +213,44 @@ Statements:    Statement         {}
 Statement:     
                /* Moved here If and While roles. solving 'Dangling Else' */
                IF LPAREN Exp RPAREN Marker2 Statement Marker3     {
-                  check_bool_exp(*$3);
+                  check_bool_exp($3->type);
                }
                | IF LPAREN Exp RPAREN Marker2 Statement Marker3 ELSE Marker2 Statement Marker3      {
-                  check_bool_exp(*$3);
+                  check_bool_exp($3->type);
                }
-               | WHILE LPAREN Exp RPAREN marker4 Statement Marker3    {
-                  check_bool_exp(*$3);
+               | WHILE LPAREN Exp RPAREN Marker4 Statement Marker3    {
+                  check_bool_exp($3->type);
                }
-               | WHILE LPAREN Exp RPAREN marker4 Statement Marker3 ELSE Marker2 Statement Marker3      {
-                  check_bool_exp(*$3);
+               | WHILE LPAREN Exp RPAREN Marker4 Statement Marker3 ELSE Marker2 Statement Marker3      {
+                  check_bool_exp($3->type);
                }
                /* ^^^ Moved here If and While roles. solving 'Dangling Else' ^^^ */
                | LBRACE Marker2 Statements Marker3 RBRACE  {}
                | Type ID SC         {
-                  insert($2->id_name,$1->type, top_offsets(), false);
+                  insert(*$2,*$1, top_offsets(), false);
                   top_offsets() += 1;
                }
-               | Type ID ASSIGN Exp SC       {
-                  assign_type_check($1->type, $4->type);
-                  insert($2->id_name,$1->type, top_offsets(), false);
+               | Type ID ASSIGN Exp SC       {   
+                  assign_type_check(*$1, $4->type);
+                  insert(*$2,*$1, top_offsets(), false);
                   top_offsets() += 1;
                   // we need to check if the number is not larger then 255
                   //TODO: check what to do with negative numbers ? 
-                  if(!TYPE_BYTE.compare($1->type) && $4->number > 255){
+                  if(!TYPE_BYTE.compare(*$1) && $4->number > 255){
                      output::errorByteTooLarge(yylineno,to_string($4->number));
                      exit(0); 
                   }
                }
                | ID ASSIGN Exp SC         {
-                  assign_type_check(get_id_type($1->id_name, *tables), $3->type);
-                  if(!name_exists_in_table($1->id_name,*tables)){
-                     output::errorUndef(yylineno,$1->id_name);
+                  assign_type_check(get_id_type(*$1, *tables), $3->type);
+                  if(!name_exists_in_table(*$1,*tables)){
+                     output::errorUndef(yylineno,*$1);
                      exit(0);
                   }
                   // we need to check if the number is not larger then 255
                   // TODO: check what to do with negative numbers ?
-                  if(!TYPE_BYTE.compare(get_id_type($1->id_name, *tables)) && $3->number > 255){
-                     cout << " i am here 2" << endl;
-                     output::errorByteTooLarge(yylineno,to_string($4->number));
+                  if(!TYPE_BYTE.compare(get_id_type(*$1, *tables)) && $3->number > 255){
+                     output::errorByteTooLarge(yylineno,to_string($3->number));
                      exit(0);
                   }
                }
@@ -394,7 +302,7 @@ Marker3:       /*epsilon*/        {
       pop_offsets();
       pop_scope();
 }
-marker4:       /*epsilon*/        {
+Marker4:       /*epsilon*/        {
       //this marker pushed a scope of type while
       push_tables();
       push_offsets(top_offsets());
@@ -403,75 +311,75 @@ marker4:       /*epsilon*/        {
 ;
 Call:          ID LPAREN ExpList RPAREN         {
                      // Check if the function name exists
-                     if(!name_exists_in_table($1->id_name, *tables, true)) {
-                        output::errorUndefFunc(yylineno, $1->id_name);
+                     if(!name_exists_in_table(*$1, *tables, true)) {
+                        output::errorUndefFunc(yylineno, *$1);
                         exit(0);
                      }
 
                      // Check if given args matching the function args
-                     string fun_sign = get_id_type($1->id_name ,*tables);
+                     string fun_sign = get_id_type(*$1 ,*tables);
                      string ret_type = fun_sign.substr(fun_sign.find("->")+2, fun_sign.size()-1);
                      vector<string> function_args = split_str(fun_sign.substr(0,fun_sign.find("->")),",");
                      vector<string> given_args = split_str($3->type,",");
 
                      if(function_args.size() != given_args.size()){
-                        output::errorPrototypeMismatch(yylineno,$1->id_name,function_args);
+                        output::errorPrototypeMismatch(yylineno,*$1,function_args);
                         exit(0);
                      }
                      for(int i=0; i< function_args.size() || i< given_args.size(); i++){
                         if(function_args[i].compare(given_args[i]) &&
                            (function_args[i].compare(TYPE_INT) || given_args[i].compare(TYPE_BYTE))   )
                            {
-                              output::errorPrototypeMismatch(yylineno,$1->id_name,function_args);
+                              output::errorPrototypeMismatch(yylineno,*$1,function_args);
                               exit(0);
                            }
                      }
 
                      /* Rule #5 hw's PDF */
-                     $$->type = fun_sign.substr(fun_sign.find("->")+2, fun_sign.size()-1);
+                     $$ = new string(ret_type);
                   }
                | ID LPAREN RPAREN         {
                   // Check if the function name exists
-                  if(!name_exists_in_table($1->id_name, *tables, true)) {
-                     output::errorUndefFunc(yylineno, $1->id_name);
+                  if(!name_exists_in_table(*$1, *tables, true)) {
+                     output::errorUndefFunc(yylineno, *$1);
                      exit(0);
                   }
-                  string fun_sign = get_id_type($1->id_name ,*tables);
+                  string fun_sign = get_id_type(*$1 ,*tables);
                   vector<string> function_args = split_str(fun_sign.substr(0,fun_sign.find("->")),",");
                   if(!function_args.empty()){
-                     output::errorPrototypeMismatch(yylineno,$1->id_name,function_args);
+                     output::errorPrototypeMismatch(yylineno,*$1,function_args);
                   }
 
                   /* Rule #5 hw's PDF */
-                  $$->type = fun_sign.substr(fun_sign.find("->")+2, fun_sign.size()-1);
+                  $$ = new string(fun_sign.substr(fun_sign.find("->")+2, fun_sign.size()-1));
                }
 ;
 ExpList:       Exp         {
+                  $$ = new Expression();
                   $$->type = $1->type;
 }
                | Exp COMMA ExpList        {
-                  //TODO: pass the value?
+                  $$ = new Expression();
                   $$->type = ($1->type).append(",").append($3->type);
                }
 ;
 Type:          INT            {
-                  $$ = new Expression();
-                  $$->type = TYPE_INT;
+                  $$ = new string(TYPE_INT);
                }
                | BYTE         {
-                  $$ = new Expression();
-                  $$->type = TYPE_BYTE;
+                  $$ = new string(TYPE_BYTE);
                }
                | BOOL         {
-                  $$ = new Expression();
-                  $$->type = TYPE_BOOL;
+                  $$ = new string(TYPE_BOOL);
                }
 ;
 Exp:           LPAREN Exp RPAREN       {
+                  $$ = new Expression();
                   $$->type = $2->type;
                   $$->number = $2->number;
                }
                | Exp ADD_BINOP Exp        {
+                  $$ = new Expression();
                   string a_type = $1->type;
                   if(a_type.empty()){
                      a_type = get_id_type($1->id_name, *tables);
@@ -483,6 +391,7 @@ Exp:           LPAREN Exp RPAREN       {
                   $$->type = binop(a_type, b_type);
                }
                | Exp MUL_BINOP Exp         {
+                  $$ = new Expression();
                   string a_type = $1->type;
                   if(a_type.empty()){
                      a_type = get_id_type($1->id_name, *tables);
@@ -494,37 +403,45 @@ Exp:           LPAREN Exp RPAREN       {
                   $$->type = binop(a_type, b_type);
                }
                | ID        {
-                  $$->type = get_id_type($1->id_name, *tables);
+                  $$ = new Expression();
+                  $$->type = get_id_type(*$1, *tables);
                }
                | Call         {
-                  $$->type = $1->type;
+                  $$->type = *$1;
                }
                | NUM       {
+                  $$ = new Expression();
                   $$->type = TYPE_INT;
-                  $$->number = $1->number;
+                  $$->number = $1;
                }
                | NUM B       {
-                  $$->number = $1->number;  
+                  $$ = new Expression();
                   $$->type = TYPE_BYTE;
+                  $$->number = $1;  
                }
                | STRING       {
                   // String is an internal type
-                  $$->str=$1->str;  
+                  $$ = new Expression();
+                  $$->str=*$1;  
                   $$->type= TYPE_STRING;
                }
                | TRUE         {
+                  $$ = new Expression();
                   $$->bool_value=true;
                   $$->type = TYPE_BOOL;
                }
                | FALSE        {
+                  $$ = new Expression();
                   $$->bool_value=false;
                   $$->type = TYPE_BOOL;
                }
                | NOT Exp         {
-                  check_bool_exp(*$2);
+                  $$ = new Expression();
+                  check_bool_exp($2->type);
                   $$->type = $2->type;
                }
                | Exp AND Exp        {
+                  $$ = new Expression();
                   string a_type = $1->type;
                   if(a_type.empty()){
                      a_type = get_id_type($1->id_name, *tables);
@@ -536,6 +453,7 @@ Exp:           LPAREN Exp RPAREN       {
                   $$->type = log_eq(a_type, b_type);
                }
                | Exp OR Exp        {
+                  $$ = new Expression();
                   string a_type = $1->type;
                   if(a_type.empty()){
                      a_type = get_id_type($1->id_name, *tables);
@@ -547,6 +465,7 @@ Exp:           LPAREN Exp RPAREN       {
                   $$->type = log_eq(a_type, b_type);
                }
                | Exp EQUALITY_RELOP Exp        {
+                  $$ = new Expression();
                   string a_type = $1->type;
                   if(a_type.empty()){
                      a_type = get_id_type($1->id_name, *tables);
@@ -558,6 +477,7 @@ Exp:           LPAREN Exp RPAREN       {
                   $$->type = relop(a_type, b_type);
                }
                | Exp RELATIONAL_RELOP Exp         {
+                  $$ = new Expression();
                   string a_type = $1->type;
                   if(a_type.empty()){
                      a_type = get_id_type($1->id_name, *tables);
@@ -571,6 +491,36 @@ Exp:           LPAREN Exp RPAREN       {
 
 ;
 %%
+
+bool name_exists_in_table(const string name,const stack<map<string, pair<string, int>>> &tables, bool is_fun){
+   /*
+   * this function will get a pointer to a string representing a name and a stack of tables
+   * the function will return true if the name is already in the tables and false otherwise
+   */
+   stack<map<string, pair<string, int>>> *tabels_clone = new stack<map<string, pair<string, int>>>(tables);
+   while (!tabels_clone->empty()) {
+      auto table = tabels_clone->top();
+      tabels_clone->pop();
+      // in c++11 table.contains doesnt exist yet, so to find if the key
+      // exists in the table, we search an iterator, and if we got to the end
+      // of the table, that means the value is not there
+      auto it= table.find(name);
+      if (it != table.end()) {
+            // if reached here, that means the key already is in some table
+            if(is_fun){
+               string id_type = it->second.first;
+               if(id_type.find("->") == string::npos){
+                  return false;
+               }
+            }
+            // if reached here, that means the key already is in some table
+            delete tabels_clone;
+            return true;
+      }
+   }
+   delete tabels_clone;
+   return false;
+} 
 
 /* Rule #8 hw's PDF */
 string relop(string a, string b){
@@ -604,17 +554,17 @@ string binop(string a, string b){
       return TYPE_INT;
    }
    output::errorMismatch(yylineno);
-	exit(0);
+   exit(0);
 }
 
 /* Rule #16 hw's PDF */
-void check_bool_exp(Expression exp){
-   if(exp.type == ""){
+void check_bool_exp(string exp_type){
+   if(exp_type == ""){
       return;
    }
-   if(exp.type.compare(TYPE_BOOL)){
+   if(exp_type.compare(TYPE_BOOL)){
       output::errorMismatch(yylineno);
-		exit(0);
+      exit(0);
    }
 }
 
@@ -658,13 +608,7 @@ void yyerror(const char*){
    output::errorSyn(yylineno); 
 }
 
-int main(){
-   tables = new stack<map<string,pair<string, int>>>();
-   offsets = new stack<int>();
-   insertion_orders = new stack<queue<string>> ();
-   scope_type = new stack<string>();
-   return yyparse();
-}
+
 
 void push_regular_scope(){
    scope_type->push(REGULAR_SCOPE);
@@ -684,11 +628,116 @@ bool check_while_scope(){
    // current_scope_type.comapre(REGULAR_SCOPE) will be 0 (false) if we are in a regular scope
    // meaning not in a while scope, and so breack is ileagal
    if(scope_type->top().compare(WHILE_SCOPE)){
-     return false;
+   return false;
    }
    return true;
 }
 
 
+void assign_type_check(string var,string exp) {
+   // the string compare function will return 0 (false) only if the string are the same
+   if(var.compare(exp)){
+      if(var.compare(TYPE_INT) || exp.compare(TYPE_BYTE))  {
+         output::errorMismatch(yylineno);
+         exit(0);
+      }
+   }
+   return;
+}
 
 
+
+string get_current_function_return_type(const stack<queue<string>> stack_queues){
+   auto *tabels_clone = new  stack<queue<string>>(stack_queues);
+   while(tabels_clone->size()>1){
+      tabels_clone->pop();
+   }
+   auto *functions_queue = new queue<string>(tabels_clone->top());
+   string function_name = functions_queue->back();
+   string function_sign = get_id_type(function_name , *tables);
+   delete functions_queue;
+   delete tabels_clone;
+   return function_sign.substr(function_sign.find("->")+2, function_sign.size()-1);
+}
+
+string vectorToString(const std::vector<string>& argTypes) {
+   string res;
+   res = "(";
+   for(int i = 0; i < argTypes.size(); ++i) {
+      res.append(argTypes[i]);
+      if (i + 1 < argTypes.size())
+         res.append(",");
+   }
+   res.append(")");
+   return res;
+}
+
+   string get_id_type(const string name, const stack<map<string, pair<string, int>>> &tables){
+   stack<map<string, pair<string, int>>> *tabels_clone = new stack<map<string, pair<string, int>>>(tables);
+   while (!tabels_clone->empty()) {
+      auto table = tabels_clone->top();
+      tabels_clone->pop();
+      auto it= table.find(name);
+      if (it != table.end()) {
+            // if reached here, that means the key already is in some table
+            string id_type = it->second.first;
+            delete tabels_clone;
+            return id_type;
+      }
+   }
+   // delete tabels_clone;
+   output::errorUndef(yylineno, name);
+   exit(0);
+}
+vector<string> split_str(string str, string delimiter){
+   if(str[0] == '('){
+      str.erase(0,1);
+   }
+   if(str[str.length()-1] == ')'){
+      str.erase(str.length()-1,1);
+   }
+   vector<string> tokens;
+   size_t position = 0;
+   while ((position = str.find(delimiter)) != string::npos) {
+      tokens.push_back(str.substr(0, position));
+      str.erase(0,position + delimiter.length());
+   }
+   if(tokens.size()!=0 || !str.empty()){
+      tokens.push_back(str);
+   }
+   return tokens;
+}
+void print_map_by_order(map<string, pair<string, int>> scope_map,queue<string> orders){
+   queue<string>* clone = new queue<string> (orders);
+   string name;
+   while (clone->size()!= 0){
+      name = clone->front();
+      clone->pop();
+      auto element = scope_map[name];
+      output::printID(name, element.second, element.first);
+   }
+}
+
+template<class input_class, class output_class>
+void print_stack_of_maps(stack<map<input_class, output_class>> s) {
+   stack<map<input_class, output_class>> *clone = new stack<map<input_class, output_class>>(s);
+   while (!clone->empty()) {
+      map<input_class, output_class> m = clone->top();
+      clone->pop();
+      print_map_by_order(m);
+   }
+   delete (clone);
+}
+
+int main(){
+   tables = new stack<map<string,pair<string, int>>>();
+   offsets = new stack<int>();
+   insertion_orders = new stack<queue<string>> ();
+   scope_type = new stack<string>();
+   auto return_parse = yyparse();
+   delete tables;
+   delete offsets;
+   delete insertion_orders;
+   delete scope_type;
+   return return_parse;
+}
