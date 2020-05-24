@@ -32,7 +32,7 @@
 
    
    bool name_exists_in_table(const string name,const stack<map<string, pair<string, int>>> &tables, bool is_fun=false);
-      /* Rule #8 hw's PDF */
+   /* Rule #8 hw's PDF */
    string relop(string a, string b);
    /* Rule #9 hw's PDF */
    string log_eq(string a, string b);
@@ -46,7 +46,7 @@
    void push_offsets(int offset);
    map<string,pair<string, int>> &top_tables();
    int &top_offsets();
-   void insert(string name, string type,int offset, bool is_fun);
+   void insert(const string& name, const string& type,int offset, bool is_fun=true);
    void yyerror(const char*);
    void push_regular_scope();
    void pop_scope();
@@ -170,10 +170,14 @@ FuncDeclPart1:  RetType ID LPAREN Formals RPAREN{
          it_names++;
          it_types++;
       } 
+      delete $1;
+      delete $2;
+      delete $4;
 }
 FuncDeclPart2:  LBRACE Statements RBRACE Marker3 {}
 RetType:       Type        {
                   $$ = new string(*$1);
+                  delete $1;
 }
                | VOID         {
                   $$ = new string(TYPE_VOID);
@@ -188,23 +192,29 @@ Formals:       /*epsilon*/       {
                   $$ = new Formal();
                   $$->type = $1->type;
                   $$->id_name = $1->id_name;
+                  delete $1;
 }
 ;
 FormalsList:   FormalsDecl       {
                   $$ = new Formal();
                   $$->type = $1->type;
                   $$->id_name = $1->id_name;
+                  delete $1;
 }
                | FormalsDecl COMMA FormalsList        {
                   $$ = new Formal();
                   $$->type= ($1->type).append(",").append($3->type);
                   $$->id_name= ($1->id_name).append(",").append($3->id_name);
+                  delete $1;
+                  delete $3;
                }
 ;
 FormalsDecl:   Type ID        {
                   $$ = new Formal();
                   $$->type = *$1;
                   $$->id_name = *$2;
+                  delete $1;
+                  delete $2;
 }
 ;
 Statements:    Statement         {}
@@ -214,21 +224,27 @@ Statement:
                /* Moved here If and While roles. solving 'Dangling Else' */
                IF LPAREN Exp RPAREN Marker2 Statement Marker3     {
                   check_bool_exp($3->type);
+                  delete $3;
                }
                | IF LPAREN Exp RPAREN Marker2 Statement Marker3 ELSE Marker2 Statement Marker3      {
                   check_bool_exp($3->type);
+                  delete $3;
                }
                | WHILE LPAREN Exp RPAREN Marker4 Statement Marker3    {
                   check_bool_exp($3->type);
+                  delete $3;
                }
                | WHILE LPAREN Exp RPAREN Marker4 Statement Marker3 ELSE Marker2 Statement Marker3      {
                   check_bool_exp($3->type);
+                  delete $3;
                }
                /* ^^^ Moved here If and While roles. solving 'Dangling Else' ^^^ */
                | LBRACE Marker2 Statements Marker3 RBRACE  {}
                | Type ID SC         {
                   insert(*$2,*$1, top_offsets(), false);
                   top_offsets() += 1;
+                  delete $1;
+                  delete $2;
                }
                | Type ID ASSIGN Exp SC       {   
                   assign_type_check(*$1, $4->type);
@@ -237,24 +253,38 @@ Statement:
                   // we need to check if the number is not larger then 255
                   //TODO: check what to do with negative numbers ? 
                   if(!TYPE_BYTE.compare(*$1) && $4->number > 255){
+                     delete $1;
+                     delete $2;
+                     delete $4;
                      output::errorByteTooLarge(yylineno,to_string($4->number));
                      exit(0); 
                   }
+                  delete $1;
+                  delete $2;
+                  delete $4;
                }
                | ID ASSIGN Exp SC         {
                   assign_type_check(get_id_type(*$1, *tables), $3->type);
                   if(!name_exists_in_table(*$1,*tables)){
+                     delete $1;
+                     delete $3;
                      output::errorUndef(yylineno,*$1);
                      exit(0);
                   }
                   // we need to check if the number is not larger then 255
                   // TODO: check what to do with negative numbers ?
                   if(!TYPE_BYTE.compare(get_id_type(*$1, *tables)) && $3->number > 255){
+                     delete $1;
+                     delete $3;
                      output::errorByteTooLarge(yylineno,to_string($3->number));
                      exit(0);
                   }
+                  delete $1;
+                  delete $3;
                }
-               | Call SC         {}
+               | Call SC         {
+                  delete $1;
+               }
                | RETURN SC       {
                   if(get_current_function_return_type(*insertion_orders).compare(TYPE_VOID)){
                      output::errorMismatch(yylineno);
@@ -265,9 +295,11 @@ Statement:
                   string current_fun_return_type = get_current_function_return_type(*insertion_orders);
                   if(current_fun_return_type.compare($2->type) &&
                   (current_fun_return_type.compare(TYPE_INT) || ($2->type.compare(TYPE_BYTE)))){
+                     delete $2;
                      output::errorMismatch(yylineno);
                      exit(0);
                   }
+                  delete $2;
                }
                | BREAK SC        {
                   if(!check_while_scope()){
@@ -312,6 +344,8 @@ Marker4:       /*epsilon*/        {
 Call:          ID LPAREN ExpList RPAREN         {
                      // Check if the function name exists
                      if(!name_exists_in_table(*$1, *tables, true)) {
+                        delete $1;
+                        delete $3;
                         output::errorUndefFunc(yylineno, *$1);
                         exit(0);
                      }
@@ -323,13 +357,16 @@ Call:          ID LPAREN ExpList RPAREN         {
                      vector<string> given_args = split_str($3->type,",");
 
                      if(function_args.size() != given_args.size()){
+                        delete $1;
+                        delete $3;
                         output::errorPrototypeMismatch(yylineno,*$1,function_args);
                         exit(0);
                      }
                      for(int i=0; i< function_args.size() || i< given_args.size(); i++){
                         if(function_args[i].compare(given_args[i]) &&
-                           (function_args[i].compare(TYPE_INT) || given_args[i].compare(TYPE_BYTE))   )
-                           {
+                           (function_args[i].compare(TYPE_INT) || given_args[i].compare(TYPE_BYTE))) {
+                              delete $1;
+                              delete $3;
                               output::errorPrototypeMismatch(yylineno,*$1,function_args);
                               exit(0);
                            }
@@ -337,30 +374,39 @@ Call:          ID LPAREN ExpList RPAREN         {
 
                      /* Rule #5 hw's PDF */
                      $$ = new string(ret_type);
+                     delete $1;
+                     delete $3;
                   }
                | ID LPAREN RPAREN         {
                   // Check if the function name exists
                   if(!name_exists_in_table(*$1, *tables, true)) {
+                     delete $1;
                      output::errorUndefFunc(yylineno, *$1);
                      exit(0);
                   }
                   string fun_sign = get_id_type(*$1 ,*tables);
                   vector<string> function_args = split_str(fun_sign.substr(0,fun_sign.find("->")),",");
                   if(!function_args.empty()){
+                     delete $1;
                      output::errorPrototypeMismatch(yylineno,*$1,function_args);
+                     exit(0);
                   }
 
                   /* Rule #5 hw's PDF */
                   $$ = new string(fun_sign.substr(fun_sign.find("->")+2, fun_sign.size()-1));
+                  delete $1;
                }
 ;
 ExpList:       Exp         {
                   $$ = new Expression();
                   $$->type = $1->type;
+                  delete $1;
 }
                | Exp COMMA ExpList        {
                   $$ = new Expression();
                   $$->type = ($1->type).append(",").append($3->type);
+                  delete $1;
+                  delete $3;
                }
 ;
 Type:          INT            {
@@ -377,6 +423,7 @@ Exp:           LPAREN Exp RPAREN       {
                   $$ = new Expression();
                   $$->type = $2->type;
                   $$->number = $2->number;
+                  delete $2;
                }
                | Exp ADD_BINOP Exp        {
                   $$ = new Expression();
@@ -389,6 +436,9 @@ Exp:           LPAREN Exp RPAREN       {
                      b_type = get_id_type($3->id_name, *tables);
                   }
                   $$->type = binop(a_type, b_type);
+                  delete $1;
+                  delete $2;
+                  delete $3;
                }
                | Exp MUL_BINOP Exp         {
                   $$ = new Expression();
@@ -401,13 +451,18 @@ Exp:           LPAREN Exp RPAREN       {
                      b_type = get_id_type($3->id_name, *tables);
                   }
                   $$->type = binop(a_type, b_type);
+                  delete $1;
+                  delete $2;
+                  delete $3;
                }
                | ID        {
                   $$ = new Expression();
                   $$->type = get_id_type(*$1, *tables);
+                  delete $1;
                }
                | Call         {
                   $$->type = *$1;
+                  delete $1;
                }
                | NUM       {
                   $$ = new Expression();
@@ -424,6 +479,7 @@ Exp:           LPAREN Exp RPAREN       {
                   $$ = new Expression();
                   $$->str=*$1;  
                   $$->type= TYPE_STRING;
+                  delete $1;
                }
                | TRUE         {
                   $$ = new Expression();
@@ -439,6 +495,7 @@ Exp:           LPAREN Exp RPAREN       {
                   $$ = new Expression();
                   check_bool_exp($2->type);
                   $$->type = $2->type;
+                  delete $2;
                }
                | Exp AND Exp        {
                   $$ = new Expression();
@@ -451,6 +508,8 @@ Exp:           LPAREN Exp RPAREN       {
                      b_type = get_id_type($3->id_name, *tables);
                   }
                   $$->type = log_eq(a_type, b_type);
+                  delete $1;
+                  delete $3;
                }
                | Exp OR Exp        {
                   $$ = new Expression();
@@ -463,6 +522,8 @@ Exp:           LPAREN Exp RPAREN       {
                      b_type = get_id_type($3->id_name, *tables);
                   }
                   $$->type = log_eq(a_type, b_type);
+                  delete $1;
+                  delete $3;
                }
                | Exp EQUALITY_RELOP Exp        {
                   $$ = new Expression();
@@ -475,6 +536,9 @@ Exp:           LPAREN Exp RPAREN       {
                      b_type = get_id_type($3->id_name, *tables);
                   }
                   $$->type = relop(a_type, b_type);
+                  delete $1;
+                  delete $2;
+                  delete $3;
                }
                | Exp RELATIONAL_RELOP Exp         {
                   $$ = new Expression();
@@ -487,6 +551,9 @@ Exp:           LPAREN Exp RPAREN       {
                      b_type = get_id_type($3->id_name, *tables);
                   }
                   $$->type = relop(a_type, b_type);
+                  delete $1;
+                  delete $2;
+                  delete $3;
                }
 
 ;
@@ -510,6 +577,7 @@ bool name_exists_in_table(const string name,const stack<map<string, pair<string,
             if(is_fun){
                string id_type = it->second.first;
                if(id_type.find("->") == string::npos){
+                  delete tabels_clone;
                   return false;
                }
             }
@@ -592,7 +660,7 @@ int &top_offsets(){
    return offsets->top();
 }
 
-void insert(string name, string type,int offset, bool is_fun){
+void insert(const string& name, const string& type,int offset, bool is_fun){
    if(name_exists_in_table(name,*tables)){
       output::errorDef(yylineno,name);
       exit(0);
@@ -607,8 +675,6 @@ void insert(string name, string type,int offset, bool is_fun){
 void yyerror(const char*){
    output::errorSyn(yylineno); 
 }
-
-
 
 void push_regular_scope(){
    scope_type->push(REGULAR_SCOPE);
@@ -685,7 +751,7 @@ string vectorToString(const std::vector<string>& argTypes) {
             return id_type;
       }
    }
-   // delete tabels_clone;
+   delete tabels_clone;
    output::errorUndef(yylineno, name);
    exit(0);
 }
@@ -716,6 +782,7 @@ void print_map_by_order(map<string, pair<string, int>> scope_map,queue<string> o
       auto element = scope_map[name];
       output::printID(name, element.second, element.first);
    }
+   delete clone;
 }
 
 template<class input_class, class output_class>
