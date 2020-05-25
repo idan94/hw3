@@ -253,10 +253,10 @@ Statement:
                   // we need to check if the number is not larger then 255
                   //TODO: check what to do with negative numbers ? 
                   if(!TYPE_BYTE.compare(*$1) && $4->number > 255){
+                     output::errorByteTooLarge(yylineno,to_string($4->number));
                      delete $1;
                      delete $2;
                      delete $4;
-                     output::errorByteTooLarge(yylineno,to_string($4->number));
                      exit(0); 
                   }
                   delete $1;
@@ -266,17 +266,17 @@ Statement:
                | ID ASSIGN Exp SC         {
                   assign_type_check(get_id_type(*$1, *tables), $3->type);
                   if(!name_exists_in_table(*$1,*tables)){
+                     output::errorUndef(yylineno,*$1);
                      delete $1;
                      delete $3;
-                     output::errorUndef(yylineno,*$1);
                      exit(0);
                   }
                   // we need to check if the number is not larger then 255
                   // TODO: check what to do with negative numbers ?
                   if(!TYPE_BYTE.compare(get_id_type(*$1, *tables)) && $3->number > 255){
+                     output::errorByteTooLarge(yylineno,to_string($3->number));
                      delete $1;
                      delete $3;
-                     output::errorByteTooLarge(yylineno,to_string($3->number));
                      exit(0);
                   }
                   delete $1;
@@ -295,8 +295,8 @@ Statement:
                   string current_fun_return_type = get_current_function_return_type(*insertion_orders);
                   if(current_fun_return_type.compare($2->type) &&
                   (current_fun_return_type.compare(TYPE_INT) || ($2->type.compare(TYPE_BYTE)))){
-                     delete $2;
                      output::errorMismatch(yylineno);
+                     delete $2;
                      exit(0);
                   }
                   delete $2;
@@ -343,10 +343,10 @@ Marker4:       /*epsilon*/        {
 ;
 Call:          ID LPAREN ExpList RPAREN         {
                      // Check if the function name exists
-                     if(!name_exists_in_table(*$1, *tables, true)) {
+                     if(!name_exists_in_table(*$1, *tables, true)) {                     
+                        output::errorUndefFunc(yylineno, *$1);
                         delete $1;
                         delete $3;
-                        output::errorUndefFunc(yylineno, *$1);
                         exit(0);
                      }
 
@@ -357,17 +357,17 @@ Call:          ID LPAREN ExpList RPAREN         {
                      vector<string> given_args = split_str($3->type,",");
 
                      if(function_args.size() != given_args.size()){
+                        output::errorPrototypeMismatch(yylineno,*$1,function_args);
                         delete $1;
                         delete $3;
-                        output::errorPrototypeMismatch(yylineno,*$1,function_args);
                         exit(0);
                      }
                      for(int i=0; i< function_args.size() || i< given_args.size(); i++){
                         if(function_args[i].compare(given_args[i]) &&
                            (function_args[i].compare(TYPE_INT) || given_args[i].compare(TYPE_BYTE))) {
+                              output::errorPrototypeMismatch(yylineno,*$1,function_args);
                               delete $1;
                               delete $3;
-                              output::errorPrototypeMismatch(yylineno,*$1,function_args);
                               exit(0);
                            }
                      }
@@ -380,15 +380,15 @@ Call:          ID LPAREN ExpList RPAREN         {
                | ID LPAREN RPAREN         {
                   // Check if the function name exists
                   if(!name_exists_in_table(*$1, *tables, true)) {
-                     delete $1;
                      output::errorUndefFunc(yylineno, *$1);
+                     delete $1;
                      exit(0);
                   }
                   string fun_sign = get_id_type(*$1 ,*tables);
                   vector<string> function_args = split_str(fun_sign.substr(0,fun_sign.find("->")),",");
                   if(!function_args.empty()){
-                     delete $1;
                      output::errorPrototypeMismatch(yylineno,*$1,function_args);
+                     delete $1;
                      exit(0);
                   }
 
@@ -461,6 +461,7 @@ Exp:           LPAREN Exp RPAREN       {
                   delete $1;
                }
                | Call         {
+                  $$ = new Expression();
                   $$->type = *$1;
                   delete $1;
                }
