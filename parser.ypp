@@ -22,16 +22,16 @@
    const string TYPE_BYTE   = "BYTE";
    const string TYPE_STRING = "STRING";
    const string TYPE_VOID = "VOID";
-   stack<map<string,pair<string, int>>>* tables;
+   vector<map<string,pair<string, int>>>* tables;
    stack<string>* scope_type;
-   stack<queue<string>>* insertion_orders;
+   vector<queue<string>>* insertion_orders;
    stack<int>* offsets;
    map<string,pair<string, int>>* t;
    int yylex();
    void yyerror(const char*);
 
    
-   bool name_exists_in_table(const string name,const stack<map<string, pair<string, int>>> &tables, bool is_fun=false);
+   bool name_exists_in_table(const string name,const vector<map<string, pair<string, int>>> &tables, bool is_fun=false);
    /* Rule #8 hw's PDF */
    string relop(string a, string b);
    /* Rule #9 hw's PDF */
@@ -54,13 +54,11 @@
    void push_top_scope();
    bool check_while_scope();
    void assign_type_check(string var,string exp);
-   string get_id_type(const string name, const stack<map<string, pair<string, int>>> &tables);
-   string get_current_function_return_type(const stack<queue<string>> stack_queues);
+   string get_id_type(const string name, const vector<map<string, pair<string, int>>> &tables);
+   string get_current_function_return_type(const vector<queue<string>> stack_queues);
    string vectorToString(const std::vector<string>& argTypes);
    vector<string> split_str(string str, string delimiter);
    void print_map_by_order(map<string, pair<string, int>> scope_map,queue<string> orders);
-   template<class input_class, class output_class>
-   void print_stack_of_maps(stack<map<input_class, output_class>> s);
 %}
 
 %union{
@@ -130,7 +128,7 @@ Program:       Marker1 Funcs       {
       }
    }
    output::endScope();
-   print_map_by_order(tables->top(),insertion_orders->top());
+   print_map_by_order(tables->back(),insertion_orders->back());
    pop_tables();
    pop_offsets();
 }
@@ -329,7 +327,7 @@ Marker2:       /*epsilon*/        {
 }
 Marker3:       /*epsilon*/        {
       output::endScope();
-      print_map_by_order(tables->top(),insertion_orders->top());
+      print_map_by_order(tables->back(),insertion_orders->back());
       pop_tables();
       pop_offsets();
       pop_scope();
@@ -560,34 +558,26 @@ Exp:           LPAREN Exp RPAREN       {
 ;
 %%
 
-bool name_exists_in_table(const string name,const stack<map<string, pair<string, int>>> &tables, bool is_fun){
+bool name_exists_in_table(const string name,const vector<map<string, pair<string, int>>> &tables, bool is_fun){
    /*
    * this function will get a pointer to a string representing a name and a stack of tables
    * the function will return true if the name is already in the tables and false otherwise
    */
-   stack<map<string, pair<string, int>>> *tabels_clone = new stack<map<string, pair<string, int>>>(tables);
-   while (!tabels_clone->empty()) {
-      auto table = tabels_clone->top();
-      tabels_clone->pop();
-      // in c++11 table.contains doesnt exist yet, so to find if the key
-      // exists in the table, we search an iterator, and if we got to the end
-      // of the table, that means the value is not there
-      auto it= table.find(name);
-      if (it != table.end()) {
+   // stack<map<string, pair<string, int>>> *tabels_clone = new stack<map<string, pair<string, int>>>(tables);
+   for(auto map_iterator = tables.end()-1 ; map_iterator >=tables.begin() ; map_iterator-- ){
+      auto id_iterator= map_iterator->find(name);
+      if (id_iterator != map_iterator->end()) {
             // if reached here, that means the key already is in some table
             if(is_fun){
-               string id_type = it->second.first;
+               string id_type = id_iterator->second.first;
                if(id_type.find("->") == string::npos){
-                  delete tabels_clone;
                   return false;
                }
             }
             // if reached here, that means the key already is in some table
-            delete tabels_clone;
             return true;
       }
    }
-   delete tabels_clone;
    return false;
 } 
 
@@ -639,22 +629,22 @@ void check_bool_exp(string exp_type){
 
 
 void pop_tables(){
-   tables->pop();
-   insertion_orders->pop();
+   tables->pop_back();
+   insertion_orders->pop_back();
 }
 void pop_offsets(){
    offsets->pop();
 }
 void push_tables(){
-   tables->push(map<string,pair<string, int>>());
-   insertion_orders->push(queue<string>());
+   tables->push_back(map<string,pair<string, int>>());
+   insertion_orders->push_back(queue<string>());
    
 }
 void push_offsets(int offset){
    offsets->push(offset);
 }
 map<string,pair<string, int>> &top_tables(){
-   return tables->top();
+   return tables->back();
 }
 
 int &top_offsets(){
@@ -666,11 +656,11 @@ void insert(const string& name, const string& type,int offset, bool is_fun){
       output::errorDef(yylineno,name);
       exit(0);
    }
-   (tables->top()).insert({
+   (tables->back()).insert({
          name,
          pair<string ,int>(type,offset)
    });
-   insertion_orders->top().push(name);
+   insertion_orders->back().push(name);
 }
 
 void yyerror(const char*){
@@ -714,16 +704,9 @@ void assign_type_check(string var,string exp) {
 
 
 
-string get_current_function_return_type(const stack<queue<string>> stack_queues){
-   auto *tabels_clone = new  stack<queue<string>>(stack_queues);
-   while(tabels_clone->size()>1){
-      tabels_clone->pop();
-   }
-   auto *functions_queue = new queue<string>(tabels_clone->top());
-   string function_name = functions_queue->back();
+string get_current_function_return_type(const vector<queue<string>> stack_queues){
+   string function_name = stack_queues.front().back();
    string function_sign = get_id_type(function_name , *tables);
-   delete functions_queue;
-   delete tabels_clone;
    return function_sign.substr(function_sign.find("->")+2, function_sign.size()-1);
 }
 
@@ -739,20 +722,16 @@ string vectorToString(const std::vector<string>& argTypes) {
    return res;
 }
 
-   string get_id_type(const string name, const stack<map<string, pair<string, int>>> &tables){
-   stack<map<string, pair<string, int>>> *tabels_clone = new stack<map<string, pair<string, int>>>(tables);
-   while (!tabels_clone->empty()) {
-      auto table = tabels_clone->top();
-      tabels_clone->pop();
-      auto it= table.find(name);
-      if (it != table.end()) {
+   string get_id_type(const string name, const vector<map<string, pair<string, int>>> &tables){
+   // stack<map<string, pair<string, int>>> *tabels_clone = new stack<map<string, pair<string, int>>>(tables);
+   for(auto map_iterator = tables.end()-1 ; map_iterator >= tables.begin() ; map_iterator-- ){
+      auto id_iterator= map_iterator->find(name);
+      if (id_iterator != map_iterator->end()) {
             // if reached here, that means the key already is in some table
-            string id_type = it->second.first;
-            delete tabels_clone;
+            string id_type = id_iterator->second.first;
             return id_type;
       }
    }
-   delete tabels_clone;
    output::errorUndef(yylineno, name);
    exit(0);
 }
@@ -786,21 +765,10 @@ void print_map_by_order(map<string, pair<string, int>> scope_map,queue<string> o
    delete clone;
 }
 
-template<class input_class, class output_class>
-void print_stack_of_maps(stack<map<input_class, output_class>> s) {
-   stack<map<input_class, output_class>> *clone = new stack<map<input_class, output_class>>(s);
-   while (!clone->empty()) {
-      map<input_class, output_class> m = clone->top();
-      clone->pop();
-      print_map_by_order(m);
-   }
-   delete (clone);
-}
-
 int main(){
-   tables = new stack<map<string,pair<string, int>>>();
+   tables = new vector<map<string,pair<string, int>>>();
    offsets = new stack<int>();
-   insertion_orders = new stack<queue<string>> ();
+   insertion_orders = new vector<queue<string>> ();
    scope_type = new stack<string>();
    auto return_parse = yyparse();
    delete tables;
